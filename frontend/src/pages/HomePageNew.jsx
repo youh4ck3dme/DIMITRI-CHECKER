@@ -78,29 +78,54 @@ export default function HomePageNew() {
 
   const handleSearch = useCallback(async (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomePageNew.jsx:80',message:'handleSearch called',data:{query:query,queryLength:query.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'J'})}).catch(()=>{});
+    // #endregion
+    if (!query.trim()) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomePageNew.jsx:84',message:'Empty query, returning',data:{query:query},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'J'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
 
     setLoading(true);
     setError(null);
     setData(null);
     setShowResults(false);
 
+    const searchUrl = `http://localhost:8000/api/search?q=${encodeURIComponent(query)}`;
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomePageNew.jsx:95',message:'Before fetch',data:{url:searchUrl,query:query},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'J'})}).catch(()=>{});
+    // #endregion
+
     try {
-      const response = await fetch(`http://localhost:8000/api/search?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error('Chyba pri komunikácii so serverom');
+      const response = await fetch(searchUrl);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomePageNew.jsx:100',message:'After fetch',data:{ok:response.ok,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'J'})}).catch(()=>{});
+      // #endregion
+      if (!response.ok) throw new Error(`Chyba pri komunikácii so serverom: ${response.status} ${response.statusText}`);
       
       const result = await response.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomePageNew.jsx:105',message:'Response parsed',data:{hasNodes:!!result.nodes,nodeCount:result.nodes?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'J'})}).catch(()=>{});
+      // #endregion
       if (result.nodes.length === 0) {
         setError('Nenašli sa žiadne výsledky pre zadaný dopyt.');
       } else {
         setData(result);
         setShowResults(true);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomePageNew.jsx:112',message:'Search successful',data:{nodeCount:result.nodes.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'J'})}).catch(()=>{});
+        // #endregion
         // Scroll to results
         setTimeout(() => {
           document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
       }
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomePageNew.jsx:120',message:'Search error',data:{error:err.message,errorType:err.constructor.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'J'})}).catch(()=>{});
+      // #endregion
       setError(err.message || 'Nastala chyba pri vyhľadávaní.');
     } finally {
       setLoading(false);
