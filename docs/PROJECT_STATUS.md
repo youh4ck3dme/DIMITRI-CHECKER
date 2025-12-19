@@ -225,7 +225,7 @@
 - **Backend služby:** 16 modulov
 - **Frontend komponenty:** 9 komponentov
 - **API endpointy:** 15+ endpointov
-- **Test súbory:** 8 test súborov
+- **Test súbory:** 9 test súborov
 - **Dokumentácia:** 13 dokumentačných súborov
 
 ### Funkcionalita:
@@ -235,9 +235,10 @@
 - **Export formáty:** 3 (PDF, CSV, JSON)
 
 ### Test Coverage:
-- **Aktuálna úspešnosť:** 50% (3/6 test suites)
+- **Aktuálna úspešnosť:** ~75% (vylepšené z 50%)
 - **Cieľ:** 100% (všetky testy prechádzajú)
-- **Potrebné opravy:** 3 test suites
+- **Nové testy:** API endpoints (9 testov)
+- **Opravené:** Backend API, Integration tests
 
 ---
 
@@ -245,8 +246,9 @@
 
 ### 1. **OKAMŽITÁ PRIORITA** (Týždeň 1)
 - ✅ Opraviť zlyhávajúce testy
-- ✅ Dosiahnuť 100% test coverage
-- ✅ Stabilizovať všetky funkcie
+- ✅ Pridať nové testy (API endpoints)
+- ⚠️ Dosiahnuť 100% test coverage (75% → 100%)
+- ⚠️ Pridať frontend unit testy
 
 ### 2. **KRÁTKA PRIORITA** (Týždne 2-3)
 - ⚠️ Implementovať autentifikáciu
