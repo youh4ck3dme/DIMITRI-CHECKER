@@ -82,6 +82,9 @@ export default defineConfig({
     include: ['react', 'react-dom', 'react-router-dom'],
     exclude: ['react-force-graph-2d']
   },
+  resolve: {
+    dedupe: ['react', 'react-dom', 'prop-types']
+  },
   build: {
     rollupOptions: {
       output: {

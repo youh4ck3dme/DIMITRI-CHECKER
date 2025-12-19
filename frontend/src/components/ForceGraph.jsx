@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, memo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Building2, User, MapPin, AlertTriangle, X, Download, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
