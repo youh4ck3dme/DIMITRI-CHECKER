@@ -10,6 +10,7 @@
 - ✅ Subscription tiers (Free, Pro, Enterprise)
 - ✅ User status (active, verified)
 - ✅ Created_at, last_login tracking
+- ✅ Stripe customer ID mapping (for subscription webhooks)
 
 #### 2. Password Security
 - ✅ Bcrypt password hashing

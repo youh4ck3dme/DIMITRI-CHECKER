@@ -116,11 +116,29 @@ FRONTEND_URL=http://localhost:5173
 
 ## 🔄 Workflow
 
+### Customer ID Mapping
+
+**Important:** The application maintains a mapping between Stripe customers and users via `User.stripe_customer_id`.
+
+When a user initiates checkout:
+1. Backend gets or creates a Stripe customer using their email
+2. The Stripe customer ID is stored in `User.stripe_customer_id` field
+3. This mapping is crucial for webhook processing
+
+When Stripe sends subscription webhooks:
+1. Stripe includes the `customer` ID (not email) in the webhook payload
+2. Backend looks up the user by `stripe_customer_id`
+3. User's tier is updated accordingly
+
+**Note:** Stripe subscription objects contain `customer` (ID), NOT `customer_email`. The customer ID mapping is essential for proper webhook handling.
+
 ### Upgrade Process
 
 1. User klikne na "Upgrade to PRO"
 2. Frontend volá `POST /api/payment/checkout?tier=pro`
-3. Backend vytvorí Stripe checkout session
+3. Backend vytvorí Stripe checkout session:
+   - Gets or creates Stripe customer by email
+   - Stores customer ID in user record
 4. User je presmerovaný na Stripe checkout
 5. Po úspešnej platbe Stripe pošle webhook
 6. Backend aktualizuje tier používateľa na PRO
@@ -130,7 +148,8 @@ FRONTEND_URL=http://localhost:5173
 
 - User môže zrušiť subscription cez `POST /api/payment/cancel`
 - Subscription sa zruší na konci platobného obdobia
-- Tier sa automaticky downgrade na FREE po zrušení
+- When subscription is deleted, Stripe sends webhook with customer ID
+- Backend looks up user by customer ID and downgrades tier to FREE
 
 ## 📝 Poznámky
 

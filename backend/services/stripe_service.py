@@ -1,6 +1,12 @@
 """
 Stripe integrácia pre monetizáciu ILUMINATI SYSTEM
 Subscription management a payment processing
+
+Customer ID Mapping Flow:
+1. When user initiates checkout, we get/create Stripe customer and store customer.id in user.stripe_customer_id
+2. Stripe sends webhooks with customer ID (not email) in subscription events
+3. On subscription.deleted webhook, we look up user by stripe_customer_id and downgrade to FREE tier
+4. This ensures proper mapping between Stripe customers and application users
 """
 
 import os
@@ -113,6 +119,13 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
 def handle_webhook(payload: bytes, signature: str) -> Dict:
     """
     Spracuje Stripe webhook event.
+    
+    Important: Stripe subscription webhooks contain 'customer' (ID), not 'customer_email'.
+    We must look up users by their stored stripe_customer_id to properly handle subscription events.
+    
+    Supported events:
+    - checkout.session.completed: Upgrade user tier when payment succeeds
+    - customer.subscription.deleted: Downgrade user to FREE when subscription is canceled
     
     Args:
         payload: Raw webhook payload
