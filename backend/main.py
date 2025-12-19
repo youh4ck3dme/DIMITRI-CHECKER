@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Depends, status
+from fastapi import FastAPI, HTTPException, Request, Depends, status, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
@@ -28,6 +28,10 @@ from services.circuit_breaker import get_all_breakers, reset_breaker
 from services.metrics import get_metrics, increment, timer, TimerContext, record_event, gauge
 from services.performance import timing_decorator, get_connection_pool
 from services.proxy_rotation import get_proxy_stats, init_proxy_pool
+from services.stripe_service import (
+    create_checkout_session, handle_webhook, get_subscription_status,
+    cancel_subscription
+)
 from services.auth import (
     User, UserTier, create_user, authenticate_user, get_user_by_email,
     create_access_token, decode_access_token, get_user_tier_limits,
@@ -324,6 +328,86 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 async def get_tier_limits(current_user: User = Depends(get_current_user)):
     """Získa limity pre tier aktuálneho používateľa"""
     return get_user_tier_limits(current_user.tier)
+
+# --- STRIPE ENDPOINTY ---
+
+@app.post("/api/payment/checkout")
+async def create_payment_checkout(
+    tier: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Vytvorí Stripe checkout session pre upgrade tieru"""
+    try:
+        user_tier = UserTier(tier.lower())
+        if user_tier == UserTier.FREE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot upgrade to FREE tier"
+            )
+        
+        result = create_checkout_session(
+            user_id=current_user.id,
+            user_email=current_user.email,
+            tier=user_tier
+        )
+        
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result["error"]
+            )
+        
+        return result
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid tier: {tier}"
+        )
+
+@app.post("/api/payment/webhook")
+async def stripe_webhook(request: FastAPIRequest):
+    """Stripe webhook endpoint pre subscription events"""
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+    
+    if not signature:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing stripe-signature header"
+        )
+    
+    result = handle_webhook(payload, signature)
+    
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"]
+        )
+    
+    return result
+
+@app.get("/api/payment/subscription")
+async def get_subscription(current_user: User = Depends(get_current_user)):
+    """Získa subscription status používateľa"""
+    result = get_subscription_status(current_user.email)
+    
+    if result is None:
+        return {"status": "no_subscription", "tier": current_user.tier.value}
+    
+    return result
+
+@app.post("/api/payment/cancel")
+async def cancel_user_subscription(current_user: User = Depends(get_current_user)):
+    """Zruší subscription používateľa"""
+    result = cancel_subscription(current_user.email)
+    
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"]
+        )
+    
+    return result
 
 @app.get("/api/health")
 def health_check():
