@@ -2,22 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Plugin to fix prop-types CommonJS issue
+// Plugin to ensure prop-types is handled correctly
 const fixPropTypesPlugin = () => ({
   name: 'fix-prop-types',
   enforce: 'pre',
-  resolveId(id) {
-    if (id === 'prop-types') {
-      return { id: 'prop-types', moduleSideEffects: false }
+  configResolved(config) {
+    // Ensure prop-types is in optimizeDeps
+    if (!config.optimizeDeps.include.includes('prop-types')) {
+      config.optimizeDeps.include.push('prop-types')
     }
-    return null
-  },
-  load(id) {
-    if (id === 'prop-types') {
-      // Return empty module - prop-types will be handled by optimizeDeps
-      return 'export default {};'
-    }
-    return null
   }
 })
 
