@@ -147,13 +147,13 @@
 ### Frontend
 - [x] Error boundaries ✅ DOKONČENÉ
 - [x] Service Worker (PWA) ✅ DOKONČENÉ
-- [ ] Offline mode
+- [x] Offline mode ✅ DOKONČENÉ
 - [ ] Performance optimization
 - [x] SEO meta tags ✅ DOKONČENÉ
 
 ## 📝 Dokumentácia
 
-- [ ] API dokumentácia (OpenAPI/Swagger)
+- [x] API dokumentácia (OpenAPI/Swagger) ✅ DOKONČENÉ
 - [ ] Developer guide
 - [ ] Deployment guide
 - [ ] Architecture diagram
