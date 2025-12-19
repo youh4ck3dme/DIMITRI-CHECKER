@@ -79,8 +79,11 @@ export default defineConfig({
     })
   ],
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: ['react-force-graph-2d']
+    include: ['react', 'react-dom', 'react-router-dom', 'prop-types'],
+    esbuildOptions: {
+      mainFields: ['module', 'main'],
+      resolveExtensions: ['.js', '.jsx', '.ts', '.tsx']
+    }
   },
   resolve: {
     dedupe: ['react', 'react-dom', 'prop-types']

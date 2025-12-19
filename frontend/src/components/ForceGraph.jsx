@@ -1,5 +1,14 @@
+// #region agent log
+fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ForceGraph.jsx:1',message:'ForceGraph importing',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+// #endregion
 import React, { useRef, useState, useCallback, useEffect, memo } from 'react';
+// #region agent log
+fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ForceGraph.jsx:5',message:'Before ForceGraph2D import',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+// #endregion
 import ForceGraph2D from 'react-force-graph-2d';
+// #region agent log
+fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ForceGraph.jsx:7',message:'After ForceGraph2D import',data:{hasForceGraph2D:!!ForceGraph2D},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+// #endregion
 import { Building2, User, MapPin, AlertTriangle, X, Download, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 const ForceGraph = ({ data }) => {
