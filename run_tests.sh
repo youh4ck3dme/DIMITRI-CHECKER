@@ -29,6 +29,16 @@ python3 tests/test_new_features.py
 NEW_FEATURES_RESULT=$?
 echo ""
 
+# 1.6. Performance testy
+echo -e "${YELLOW}1.6. PERFORMANCE TESTS${NC}"
+echo "─────────────────────────────────────"
+python3 tests/test_performance.py
+PERFORMANCE_RESULT=$?
+echo ""
+node tests/test_frontend_performance.js
+FRONTEND_PERFORMANCE_RESULT=$?
+echo ""
+
 # 2. Frontend testy
 echo -e "${YELLOW}2. FRONTEND TESTS${NC}"
 echo "─────────────────────────────────────"
@@ -50,7 +60,7 @@ echo "📊 FINÁLNY SÚHRN"
 echo "═══════════════════════════════════════"
 echo ""
 
-TOTAL_TESTS=4
+TOTAL_TESTS=5
 PASSED=0
 
 if [ $BACKEND_RESULT -eq 0 ]; then
@@ -65,6 +75,13 @@ if [ $NEW_FEATURES_RESULT -eq 0 ]; then
     PASSED=$((PASSED + 1))
 else
     echo -e "${RED}❌ New features tests: FAILED${NC}"
+fi
+
+if [ $PERFORMANCE_RESULT -eq 0 ] && [ $FRONTEND_PERFORMANCE_RESULT -eq 0 ]; then
+    echo -e "${GREEN}✅ Performance tests: PASSED${NC}"
+    PASSED=$((PASSED + 1))
+else
+    echo -e "${RED}❌ Performance tests: FAILED${NC}"
 fi
 
 if [ $FRONTEND_RESULT -eq 0 ]; then

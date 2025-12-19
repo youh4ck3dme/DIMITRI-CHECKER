@@ -4,7 +4,7 @@ Performance optimization utilities pre backend
 
 import time
 import functools
-from typing import Callable, Any
+from typing import Callable
 from collections import defaultdict
 import asyncio
 
@@ -100,6 +100,7 @@ def batch_requests(batch_size: int = 10, delay: float = 0.1):
         delay: Oneskořenie medzi batchmi v sekundách
     """
     def decorator(func: Callable) -> Callable:
+        # Each queued item: (args, kwargs, future)
         queue = []
         processing = False
         
@@ -109,27 +110,37 @@ def batch_requests(batch_size: int = 10, delay: float = 0.1):
                 return
             
             processing = True
-            while len(queue) > 0:
-                batch = queue[:batch_size]
-                queue[:] = queue[batch_size:]
-                
-                # Spracovať batch
-                results = await asyncio.gather(*[func(*args, **kwargs) for args, kwargs in batch])
-                
-                # Vrátiť výsledky
-                for (_, future), result in zip(batch, results):
-                    if not future.done():
-                        future.set_result(result)
-                
-                # Delay medzi batchmi
-                if len(queue) > 0:
-                    await asyncio.sleep(delay)
-            
-            processing = False
+            try:
+                while len(queue) > 0:
+                    batch = queue[:batch_size]
+                    queue[:] = queue[batch_size:]
+                    
+                    # Spracovať batch
+                    results = await asyncio.gather(
+                        *(func(*args, **kwargs) for args, kwargs, _future in batch),
+                        return_exceptions=True,
+                    )
+                    
+                    # Vrátiť výsledky
+                    for (_args, _kwargs, future), result in zip(batch, results):
+                        if future.done():
+                            continue
+                        if isinstance(result, Exception):
+                            future.set_exception(result)
+                        else:
+                            future.set_result(result)
+                    
+                    # Delay medzi batchmi
+                    if len(queue) > 0:
+                        await asyncio.sleep(delay)
+            finally:
+                processing = False
         
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            future = asyncio.Future()
+            # Ensure the Future is bound to the currently running loop
+            loop = asyncio.get_running_loop()
+            future = loop.create_future()
             queue.append((args, kwargs, future))
             
             # Spustiť processing ak nie je aktívny
@@ -178,4 +189,3 @@ _connection_pool = ConnectionPool(max_connections=10)
 def get_connection_pool() -> ConnectionPool:
     """Získať globálny connection pool"""
     return _connection_pool
-
