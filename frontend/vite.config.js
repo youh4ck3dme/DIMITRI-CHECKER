@@ -1,14 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import commonjs from '@rollup/plugin-commonjs'
 
 export default defineConfig({
   plugins: [
     react(),
-    commonjs({
-      include: ['node_modules/prop-types/**']
-    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico'],
@@ -86,8 +82,10 @@ export default defineConfig({
     include: ['react', 'react-dom', 'react-router-dom', 'prop-types'],
     esbuildOptions: {
       mainFields: ['module', 'main'],
-      resolveExtensions: ['.js', '.jsx', '.ts', '.tsx']
-    }
+      resolveExtensions: ['.js', '.jsx', '.ts', '.tsx'],
+      format: 'esm'
+    },
+    force: true
   },
   resolve: {
     dedupe: ['react', 'react-dom', 'prop-types']
