@@ -3,8 +3,21 @@ Integračné testy - testujú celý systém end-to-end
 """
 import sys
 import os
-import requests
 import time
+
+# Pridať backend venv do path
+backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
+venv_path = os.path.join(backend_path, 'venv', 'lib', 'python3.14', 'site-packages')
+if os.path.exists(venv_path):
+    sys.path.insert(0, venv_path)
+
+try:
+    import requests
+except ImportError:
+    print("⚠️ requests nie je nainštalovaný. Inštalujem...")
+    import subprocess
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'requests'])
+    import requests
 
 BASE_URL = "http://localhost:8000"
 FRONTEND_URL = "http://localhost:5173"

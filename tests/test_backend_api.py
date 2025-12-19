@@ -3,11 +3,24 @@ Komplexné testy pre Backend API
 """
 import sys
 import os
-import requests
 import time
 
 # Pridať backend do path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
+sys.path.insert(0, backend_path)
+
+# Pridať venv site-packages do path
+venv_path = os.path.join(backend_path, 'venv', 'lib', 'python3.14', 'site-packages')
+if os.path.exists(venv_path):
+    sys.path.insert(0, venv_path)
+
+try:
+    import requests
+except ImportError:
+    print("⚠️ requests nie je nainštalovaný. Inštalujem...")
+    import subprocess
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'requests'], cwd=backend_path)
+    import requests
 
 BASE_URL = "http://localhost:8000"
 
