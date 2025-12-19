@@ -1,5 +1,6 @@
 // ESM wrapper pre prop-types (CommonJS modul)
-import PropTypes from 'prop-types/index.js';
+// Vite automaticky transformuje CommonJS na ESM
+import PropTypes from 'prop-types';
 
 export default PropTypes;
 export const {

@@ -88,7 +88,7 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
-      'prop-types': '/src/utils/prop-types-wrapper.js'
+      'prop-types': './src/utils/prop-types-wrapper.js'
     }
   },
   build: {
