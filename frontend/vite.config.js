@@ -2,8 +2,34 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Plugin pre transformáciu prop-types z CommonJS na ESM
+const propTypesPlugin = () => ({
+  name: 'prop-types-esm',
+  enforce: 'pre',
+  resolveId(id) {
+    if (id === 'prop-types') {
+      return id
+    }
+  },
+  load(id) {
+    if (id === 'prop-types') {
+      // Vrátiť ESM wrapper pre prop-types
+      return `
+        import PropTypes from 'prop-types/index.js';
+        export default PropTypes;
+        export const { 
+          array, bool, func, number, object, string, symbol, 
+          any, arrayOf, element, elementType, instanceOf, 
+          node, objectOf, oneOf, oneOfType, shape, exact 
+        } = PropTypes;
+      `
+    }
+  }
+})
+
 export default defineConfig({
   plugins: [
+    propTypesPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -79,14 +105,14 @@ export default defineConfig({
     })
   ],
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'prop-types'],
+    include: ['react', 'react-dom', 'react-router-dom'],
     esbuildOptions: {
       mainFields: ['module', 'main'],
       resolveExtensions: ['.js', '.jsx', '.ts', '.tsx']
     }
   },
   resolve: {
-    dedupe: ['react', 'react-dom', 'prop-types']
+    dedupe: ['react', 'react-dom']
   },
   build: {
     rollupOptions: {
