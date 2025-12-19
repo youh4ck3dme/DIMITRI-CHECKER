@@ -13,6 +13,8 @@ import { exportToCSV, exportToPDF, exportToJSON } from '../utils/export';
 import { useTheme } from '../hooks/useTheme';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useOffline } from '../hooks/useOffline';
+import RateLimitIndicator from '../components/RateLimitIndicator';
+import { useAuth } from '../contexts/AuthContext';
 import SEOHead from '../components/SEOHead';
 
 /**
@@ -24,6 +26,7 @@ import SEOHead from '../components/SEOHead';
 export default function HomePageNew() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated } = useAuth();
   const searchInputRef = useRef(null);
   const [query, setQuery] = useState('');
   const [data, setData] = useState(null);
@@ -178,13 +181,23 @@ export default function HomePageNew() {
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button 
-              className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
-              onClick={() => navigate('/vop')}
-            >
-              <Lock size={14} />
-              Klientska zóna
-            </button>
+            {isAuthenticated ? (
+              <button 
+                className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
+                onClick={() => navigate('/dashboard')}
+              >
+                <Lock size={14} />
+                Dashboard
+              </button>
+            ) : (
+              <button 
+                className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
+                onClick={() => navigate('/login')}
+              >
+                <Lock size={14} />
+                Prihlásiť sa
+              </button>
+            )}
           </div>
 
           <button className="md:hidden text-slate-700" onClick={() => setMenuOpen(!menuOpen)}>
@@ -230,6 +243,11 @@ export default function HomePageNew() {
 
                 {/* Corporate Search Bar */}
                 <div className="max-w-3xl mx-auto">
+                  {isAuthenticated && (
+                    <div className="mb-4">
+                      <RateLimitIndicator />
+                    </div>
+                  )}
                   {loading ? (
                     <LoadingSkeleton type="search" />
                   ) : (
