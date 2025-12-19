@@ -1,4 +1,8 @@
-# 🚀 ILUMINATE SYSTEM - Ďalšie Kroky
+# 🚀 ILUMINATI SYSTEM - Ďalšie Kroky
+
+**Aktuálny stav:** ~75% dokončené | **Test coverage:** 50% (potrebuje prácu)
+
+📊 **Kompletný prehľad:** Pozri [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 
 ## ✅ Čo už máme (MVP)
 
