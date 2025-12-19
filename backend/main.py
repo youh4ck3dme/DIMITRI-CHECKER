@@ -23,6 +23,8 @@ from services.database import (
     get_database_stats, cleanup_expired_cache
 )
 from services.error_handler import error_handler, log_error, safe_api_call
+from services.circuit_breaker import get_all_breakers, reset_breaker
+from services.metrics import get_metrics, increment, timer, TimerContext, record_event
 
 app = FastAPI(title="ILUMINATI SYSTEM API", version="5.0")
 
@@ -130,6 +132,22 @@ async def database_stats():
 async def search_history(limit: int = 100, country: Optional[str] = None):
     """Vráti históriu vyhľadávaní"""
     return get_search_history(limit=limit, country=country)
+
+@app.get("/api/circuit-breaker/stats")
+async def circuit_breaker_stats():
+    """Vráti štatistiky circuit breakerov"""
+    return get_all_breakers()
+
+@app.post("/api/circuit-breaker/reset/{name}")
+async def reset_circuit_breaker(name: str):
+    """Resetuje circuit breaker"""
+    reset_breaker(name)
+    return {"status": "ok", "message": f"Circuit breaker '{name}' reset"}
+
+@app.get("/api/metrics")
+async def metrics():
+    """Vráti metríky"""
+    return get_metrics().get_metrics()
 
 @app.get("/api/health")
 def health_check():
@@ -274,23 +292,28 @@ async def search_company(q: str, request: Request = None):
     """
     Orchestrátor vyhľadávania s podporou SK a CZ.
     """
-    # Rate limiting
-    if request:
-        client_id = get_client_id(request)
-        allowed, rate_info = is_allowed(client_id, tokens_required=1, tier='free')
-        if not allowed:
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "error": "Rate limit exceeded",
-                    "message": f"Príliš veľa požiadaviek. Skúste znova o {rate_info.get('retry_after', 60)} sekúnd.",
-                    "retry_after": rate_info.get('retry_after', 60),
-                    "remaining": rate_info.get('remaining', 0),
-                }
-            )
-    
-    # Získať user IP pre analytics
-    user_ip = request.client.host if request and request.client else None
+    # Metrics - začať timer
+    with TimerContext("search.duration"):
+        increment("search.requests")
+        
+        # Rate limiting
+        if request:
+            client_id = get_client_id(request)
+            allowed, rate_info = is_allowed(client_id, tokens_required=1, tier='free')
+            if not allowed:
+                increment("search.rate_limited")
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "error": "Rate limit exceeded",
+                        "message": f"Príliš veľa požiadaviek. Skúste znova o {rate_info.get('retry_after', 60)} sekúnd.",
+                        "retry_after": rate_info.get('retry_after', 60),
+                        "remaining": rate_info.get('remaining', 0),
+                    }
+                )
+        
+        # Získať user IP pre analytics
+        user_ip = request.client.host if request and request.client else None
     
     """
     """
@@ -305,7 +328,10 @@ async def search_company(q: str, request: Request = None):
     cached_result = get(cache_key)
     if cached_result:
         print(f"✅ Cache hit pre query: {query_clean}")
+        increment("search.cache_hits")
         return GraphResponse(**cached_result)
+    
+    increment("search.cache_misses")
     
     # Kontrola testovacieho IČO (slovenské 8-miestne)
     if query_clean == "88888888":
@@ -323,6 +349,7 @@ async def search_company(q: str, request: Request = None):
     if is_hungarian_tax_number(query_clean):
         # MAĎARSKÝ ADÓSZÁM - NAV integrácia
         print(f"🇭🇺 Detekované maďarský adószám: {query_clean}")
+        increment("search.by_country", tags={"country": "HU"})
         nav_data = fetch_nav_hu(query_clean)
         
         if nav_data:
@@ -384,6 +411,7 @@ async def search_company(q: str, request: Request = None):
     elif is_polish_krs(query_clean):
         # POĽSKÉ KRS - KRS integrácia
         print(f"🇵🇱 Detekované poľské KRS: {query_clean}")
+        increment("search.by_country", tags={"country": "PL"})
         krs_data = fetch_krs_pl(query_clean)
         
         if krs_data:
@@ -455,6 +483,7 @@ async def search_company(q: str, request: Request = None):
     elif is_slovak_ico(query_clean):
         # SLOVENSKÉ IČO - RPO integrácia
         print(f"🇸🇰 Detekované slovenské IČO: {query_clean}")
+        increment("search.by_country", tags={"country": "SK"})
         rpo_data = fetch_rpo_sk(query_clean)
         
         if rpo_data:
@@ -533,6 +562,7 @@ async def search_company(q: str, request: Request = None):
     else:
         # ČESKÉ IČO alebo názov - ARES integrácia
         print(f"🇨🇿 Vyhľadávam v ARES (CZ): {query_clean}")
+        increment("search.by_country", tags={"country": "CZ"})
         ares_data = fetch_ares_cz(query_clean)
         results = ares_data.get("ekonomickeSubjekty", [])
 
@@ -654,6 +684,15 @@ async def search_company(q: str, request: Request = None):
         event_data={"query": q, "country": country, "result_count": len(nodes)},
         user_ip=user_ip
     )
+    
+    # Metrics
+    increment("search.results", value=len(nodes))
+    gauge("search.last_result_count", len(nodes))
+    record_event("search.completed", {
+        "country": country,
+        "result_count": len(nodes),
+        "query_length": len(q)
+    })
     
     return result
 

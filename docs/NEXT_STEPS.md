@@ -140,9 +140,9 @@
 ### Backend
 - [x] Error handling & logging ✅ DOKONČENÉ
 - [x] Rate limiting (Token Bucket) ✅ DOKONČENÉ
-- [ ] Circuit Breaker pattern
+- [x] Circuit Breaker pattern ✅ DOKONČENÉ
 - [x] Health check endpoint ✅ DOKONČENÉ
-- [ ] Metrics & monitoring
+- [x] Metrics & monitoring ✅ DOKONČENÉ
 
 ### Frontend
 - [x] Error boundaries ✅ DOKONČENÉ
