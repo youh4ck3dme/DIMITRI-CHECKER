@@ -179,7 +179,7 @@ def run_all_tests():
             if response.status_code == 200:
                 print("✅ Server beží!")
                 break
-        except:
+        except (requests.exceptions.RequestException, ConnectionError):
             time.sleep(1)
     else:
         print("❌ Server nie je dostupný na http://localhost:8000")
