@@ -138,7 +138,7 @@
 ## 🛠️ Technické Vylepšenia
 
 ### Backend
-- [ ] Error handling & logging (Sentry)
+- [x] Error handling & logging ✅ DOKONČENÉ
 - [x] Rate limiting (Token Bucket) ✅ DOKONČENÉ
 - [ ] Circuit Breaker pattern
 - [x] Health check endpoint ✅ DOKONČENÉ
