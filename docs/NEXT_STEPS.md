@@ -35,10 +35,10 @@
 - [x] Parsovanie XML/JSON dát
 - [x] Normalizácia do jednotnej schémy
 
-#### 2.2. Poľsko (PL) ✅ ČIASTOČNE DOKONČENÉ
+#### 2.2. Poľsko (PL) ✅ DOKONČENÉ
 - [x] KRS (Krajowy Rejestr Sądowy) integrácia
-- [ ] CEIDG pre živnostníkov (pending)
-- [ ] Biała Lista pre DPH status (pending)
+- [x] CEIDG pre živnostníkov ✅ DOKONČENÉ
+- [x] Biała Lista pre DPH status ✅ DOKONČENÉ
 
 #### 2.3. Maďarsko (HU) ✅ DOKONČENÉ
 - [x] E-cegjegyzek / NAV Online
@@ -66,7 +66,7 @@
 ### 4. Risk Intelligence (Hodnota) ✅ DOKONČENÉ
 **Čas:** 1 týždeň
 
-- [ ] Dlhové registre (Finančná správa SK/CZ) (pending)
+- [x] Dlhové registre (Finančná správa SK/CZ) ✅ DOKONČENÉ
 - [x] White Horse Detector algoritmus
 - [x] Detekcia karuselových štruktúr
 - [x] Vylepšený risk score algoritmus

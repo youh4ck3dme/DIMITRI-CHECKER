@@ -11,9 +11,11 @@ from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
 
 # Database URL (môže byť z env alebo default)
+# Na macOS s Homebrew sa používa aktuálny používateľ, nie postgres
+_default_user = os.getenv("USER", os.getenv("USERNAME", "postgres"))
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/iluminati_db"
+    f"postgresql://{_default_user}@localhost:5432/iluminati_db"
 )
 
 Base = declarative_base()

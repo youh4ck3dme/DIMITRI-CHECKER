@@ -10,7 +10,10 @@ from datetime import datetime
 # Import nových služieb
 from services.sk_rpo import fetch_rpo_sk, parse_rpo_data, calculate_sk_risk_score, is_slovak_ico
 from services.pl_krs import fetch_krs_pl, parse_krs_data, calculate_pl_risk_score, is_polish_krs
+from services.pl_ceidg import search_ceidg_pl, is_ceidg_number
+from services.pl_biala_lista import search_biala_lista_pl, is_polish_nip, get_vat_status_pl
 from services.hu_nav import fetch_nav_hu, parse_nav_data, calculate_hu_risk_score, is_hungarian_tax_number
+from services.debt_registers import search_debt_registers, has_debt
 from services.risk_intelligence import generate_risk_report, calculate_enhanced_risk_score
 from services.cache import get_cache_key, get, set, get_stats as get_cache_stats
 from services.rate_limiter import is_allowed, get_client_id, get_stats as get_rate_limiter_stats
@@ -446,15 +449,41 @@ async def search_company(q: str, request: Request = None):
             
             # Hlavná firma
             company_id = f"sk_{query_clean}"
+            # Dlhové registry - Finančná správa SR
+            debt_result = search_debt_registers(query_clean, "SK")
+            if debt_result and debt_result.get("data", {}).get("has_debt"):
+                debt_data = debt_result["data"]
+                debt_risk = debt_result.get("risk_score", 0)
+                risk_score = max(risk_score, debt_risk)  # Použiť vyšší risk
+            
+            company_name = normalized.get("name", f"Firma {query_clean}")
+            if debt_result and debt_result.get("data", {}).get("has_debt"):
+                company_name += " [DLH]"
+            
             nodes.append(Node(
                 id=company_id,
-                label=normalized.get("name", f"Firma {query_clean}"),
+                label=company_name,
                 type="company",
                 country="SK",
                 risk_score=risk_score,
                 details=f"IČO: {query_clean}, Status: {normalized.get('status', 'N/A')}, Forma: {normalized.get('legal_form', 'N/A')}",
                 ico=query_clean
             ))
+            
+            # Pridať dlh do grafu ak existuje
+            if debt_result and debt_result.get("data", {}).get("has_debt"):
+                debt_data = debt_result["data"]
+                debt_id = f"debt_sk_{query_clean}"
+                total_debt = debt_data.get("total_debt", 0)
+                nodes.append(Node(
+                    id=debt_id,
+                    label=f"Dlh: {total_debt:,.0f} EUR",
+                    type="debt",
+                    country="SK",
+                    risk_score=debt_result.get("risk_score", 0),
+                    details=f"Dlh voči Finančnej správe SR: {total_debt:,.0f} EUR"
+                ))
+                edges.append(Edge(source=company_id, target=debt_id, type="HAS_DEBT"))
             
             # Adresa
             address_text = normalized.get("address", "Adresa neuvedená")
@@ -502,15 +531,41 @@ async def search_company(q: str, request: Request = None):
             company_id = f"cz_{ico}"
             risk = calculate_trust_score(item)
             
+            # Dlhové registry - Finančná správa ČR
+            debt_result = search_debt_registers(ico, "CZ")
+            if debt_result and debt_result.get("data", {}).get("has_debt"):
+                debt_data = debt_result["data"]
+                debt_risk = debt_result.get("risk_score", 0)
+                risk = max(risk, debt_risk)  # Použiť vyšší risk
+            
+            company_name = name
+            if debt_result and debt_result.get("data", {}).get("has_debt"):
+                company_name += " [DLH]"
+            
             nodes.append(Node(
                 id=company_id,
-                label=name,
+                label=company_name,
                 type="company",
                 country="CZ",
                 risk_score=risk,
                 details=f"IČO: {ico}",
                 ico=ico
             ))
+            
+            # Pridať dlh do grafu ak existuje
+            if debt_result and debt_result.get("data", {}).get("has_debt"):
+                debt_data = debt_result["data"]
+                debt_id = f"debt_cz_{ico}"
+                total_debt = debt_data.get("total_debt", 0)
+                nodes.append(Node(
+                    id=debt_id,
+                    label=f"Dlh: {total_debt:,.0f} CZK",
+                    type="debt",
+                    country="CZ",
+                    risk_score=debt_result.get("risk_score", 0),
+                    details=f"Dlh voči Finančnej správe ČR: {total_debt:,.0f} CZK"
+                ))
+                edges.append(Edge(source=company_id, target=debt_id, type="HAS_DEBT"))
 
             # Adresa
             address_id = f"addr_cz_{ico}"
@@ -554,6 +609,37 @@ async def search_company(q: str, request: Request = None):
     # Uložiť do cache
     result = GraphResponse(nodes=nodes, edges=edges)
     set(cache_key, result.dict())
+    
+    # Uložiť do databázy (história a cache)
+    main_company = next((n for n in nodes if n.type == 'company'), None)
+    country = main_company.country if main_company else None
+    risk_score = max((n.risk_score for n in nodes if n.risk_score), default=0) if nodes else 0
+    
+    save_search_history(
+        query=q,
+        country=country,
+        result_count=len(nodes),
+        risk_score=risk_score if risk_score > 0 else None,
+        user_ip=user_ip,
+        response_data={"nodes_count": len(nodes), "edges_count": len(edges)}
+    )
+    
+    # Uložiť hlavnú firmu do cache
+    if main_company and main_company.ico:
+        save_company_cache(
+            identifier=main_company.ico,
+            country=country or "UNKNOWN",
+            company_name=main_company.label,
+            data={"nodes": [n.dict() for n in nodes], "edges": [e.dict() for e in edges]},
+            risk_score=risk_score if risk_score > 0 else None
+        )
+    
+    # Analytics
+    save_analytics(
+        event_type="search",
+        event_data={"query": q, "country": country, "result_count": len(nodes)},
+        user_ip=user_ip
+    )
     
     return result
 

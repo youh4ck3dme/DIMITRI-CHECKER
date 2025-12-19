@@ -38,13 +38,13 @@ echo ""
 # 2. Vytvorenie databázy
 echo -e "${YELLOW}2. Vytváranie databázy...${NC}"
 DB_NAME="iluminati_db"
-DB_USER="postgres"
-DB_PASSWORD="postgres"
+# Na macOS s Homebrew sa používa aktuálny používateľ, nie postgres
+DB_USER=$(whoami)
 
 # Skúsiť vytvoriť databázu
-psql -U postgres -c "CREATE DATABASE $DB_NAME;" 2>/dev/null && \
+psql -U "$DB_USER" -d postgres -c "CREATE DATABASE $DB_NAME;" 2>/dev/null && \
     echo -e "${GREEN}✅ Databáza '$DB_NAME' vytvorená${NC}" || \
-    echo -e "${YELLOW}⚠️  Databáza už existuje alebo chyba (možno potrebuje heslo)${NC}"
+    echo -e "${YELLOW}⚠️  Databáza už existuje alebo chyba${NC}"
 
 echo ""
 
@@ -75,12 +75,13 @@ echo -e "${GREEN}✅ SETUP DOKONČENÝ!${NC}"
 echo "═══════════════════════════════════════"
 echo ""
 echo "📋 Database URL:"
-echo "   postgresql://postgres:postgres@localhost:5432/iluminati_db"
+DB_USER=$(whoami)
+echo "   postgresql://$DB_USER@localhost:5432/iluminati_db"
 echo ""
 echo "💡 Pre zmenu nastavení:"
 echo "   export DATABASE_URL='postgresql://user:pass@host:port/db'"
 echo ""
 echo "🔧 Pre manuálnu kontrolu:"
-echo "   psql -U postgres -d iluminati_db"
+echo "   psql -U $DB_USER -d iluminati_db"
 echo ""
 
