@@ -18,21 +18,28 @@ NC='\033[0m' # No Color
 echo -e "${YELLOW}1. BACKEND TESTS${NC}"
 echo "─────────────────────────────────────"
 cd "$(dirname "$0")"
-python3 tests/test_backend_api.py
+
+# Prefer project venv at repo root (./.venv)
+PY="python3"
+if [ -x "./.venv/bin/python" ]; then
+    PY="./.venv/bin/python"
+fi
+
+"$PY" tests/test_backend_api.py
 BACKEND_RESULT=$?
 echo ""
 
 # 1.5. Nové features testy
 echo -e "${YELLOW}1.5. NEW FEATURES TESTS${NC}"
 echo "─────────────────────────────────────"
-python3 tests/test_new_features.py
+"$PY" tests/test_new_features.py
 NEW_FEATURES_RESULT=$?
 echo ""
 
 # 1.6. Performance testy
 echo -e "${YELLOW}1.6. PERFORMANCE TESTS${NC}"
 echo "─────────────────────────────────────"
-python3 tests/test_performance.py
+"$PY" tests/test_performance.py
 PERFORMANCE_RESULT=$?
 echo ""
 node tests/test_frontend_performance.js
@@ -42,28 +49,28 @@ echo ""
 # 1.7. Proxy rotation testy
 echo -e "${YELLOW}1.7. PROXY ROTATION TESTS${NC}"
 echo "─────────────────────────────────────"
-python3 tests/test_proxy_rotation.py
+"$PY" tests/test_proxy_rotation.py
 PROXY_RESULT=$?
 echo ""
 
 # 1.8. API endpoints testy
 echo -e "${YELLOW}1.8. API ENDPOINTS TESTS${NC}"
 echo "─────────────────────────────────────"
-python3 tests/test_api_endpoints.py
+"$PY" tests/test_api_endpoints.py
 API_ENDPOINTS_RESULT=$?
 echo ""
 
 # 2. Frontend testy
 echo -e "${YELLOW}2. FRONTEND TESTS${NC}"
 echo "─────────────────────────────────────"
-python3 tests/test_frontend_build.py
+"$PY" tests/test_frontend_build.py
 FRONTEND_RESULT=$?
 echo ""
 
 # 3. Integračné testy
 echo -e "${YELLOW}3. INTEGRATION TESTS${NC}"
 echo "─────────────────────────────────────"
-python3 tests/test_integration.py
+"$PY" tests/test_integration.py
 INTEGRATION_RESULT=$?
 echo ""
 
@@ -138,4 +145,3 @@ else
     echo -e "${YELLOW}⚠️ Niektoré testy zlyhali${NC}"
     exit 1
 fi
-

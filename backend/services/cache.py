@@ -95,6 +95,6 @@ def _estimate_cache_size() -> float:
             for value, _ in _cache.values()
         )
         return round(total_size / (1024 * 1024), 2)
-    except:
+    except (TypeError, ValueError, KeyError):
         return 0.0
 

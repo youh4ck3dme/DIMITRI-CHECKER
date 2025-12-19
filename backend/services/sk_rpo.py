@@ -177,7 +177,7 @@ def calculate_sk_risk_score(company_data: Dict) -> int:
             age_years = (datetime.now() - founded_date).days / 365
             if age_years < 1:  # Menej ako rok
                 score += 2
-        except:
+        except (ValueError, TypeError):
             pass
     
     return min(score, 10)  # Max 10
