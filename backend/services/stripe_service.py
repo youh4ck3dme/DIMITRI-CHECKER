@@ -47,11 +47,11 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
     """
     try:
         # Získať alebo vytvoriť Stripe customer
+        customer_id = None
         with get_db_session() as db:
             if db:
                 from services.auth import get_user_by_email
                 user = get_user_by_email(db, user_email)
-                customer_id = None
                 
                 if user and user.stripe_customer_id:
                     # Použiť existujúci customer ID
@@ -70,14 +70,10 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
                     if user:
                         update_user_stripe_customer_id(db, user_id, customer_id)
         
-        price_id = PRICES.get(tier)
-        
         # Vytvoriť checkout session s customer ID
-        checkout_session = stripe.checkout.Session.create(
-            customer=customer_id if customer_id else None,
-            customer_email=user_email if not customer_id else None,
-            payment_method_types=['card'],
-            line_items=[{
+        session_params = {
+            'payment_method_types': ['card'],
+            'line_items': [{
                 'price_data': {
                     'currency': 'eur',
                     'product_data': {
@@ -91,14 +87,22 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
                 },
                 'quantity': 1,
             }],
-            mode='subscription',
-            success_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/payment/cancel",
-            metadata={
+            'mode': 'subscription',
+            'success_url': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+            'cancel_url': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/payment/cancel",
+            'metadata': {
                 'user_id': str(user_id),
                 'tier': tier.value,
             },
-        )
+        }
+        
+        # Použiť customer ID ak existuje, inak customer_email
+        if customer_id:
+            session_params['customer'] = customer_id
+        else:
+            session_params['customer_email'] = user_email
+        
+        checkout_session = stripe.checkout.Session.create(**session_params)
         
         return {
             "session_id": checkout_session.id,
