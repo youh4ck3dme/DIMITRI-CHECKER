@@ -14,8 +14,21 @@ from services.hu_nav import fetch_nav_hu, parse_nav_data, calculate_hu_risk_scor
 from services.risk_intelligence import generate_risk_report, calculate_enhanced_risk_score
 from services.cache import get_cache_key, get, set, get_stats as get_cache_stats
 from services.rate_limiter import is_allowed, get_client_id, get_stats as get_rate_limiter_stats
+from services.database import (
+    init_database, save_search_history, get_search_history,
+    save_company_cache, get_company_cache, save_analytics,
+    get_database_stats, cleanup_expired_cache
+)
 
 app = FastAPI(title="ILUMINATI SYSTEM API", version="5.0")
+
+# Inicializovať databázu pri štarte
+@app.on_event("startup")
+async def startup_event():
+    """Inicializácia pri štarte aplikácie"""
+    init_database()
+    # Cleanup expirovaného cache pri štarte
+    cleanup_expired_cache()
 
 # --- KONFIGURÁCIA CORS (Prepojenie s Frontendom) ---
 origins = [
@@ -101,6 +114,16 @@ async def rate_limiter_stats():
     """Vráti štatistiky rate limitera"""
     return get_rate_limiter_stats()
 
+@app.get("/api/database/stats")
+async def database_stats():
+    """Vráti štatistiky databázy"""
+    return get_database_stats()
+
+@app.get("/api/search/history")
+async def search_history(limit: int = 100, country: Optional[str] = None):
+    """Vráti históriu vyhľadávaní"""
+    return get_search_history(limit=limit, country=country)
+
 @app.get("/api/health")
 def health_check():
     """Health check endpoint."""
@@ -114,7 +137,8 @@ def health_check():
             "pl_krs": True,
             "hu_nav": True,
             "risk_intelligence": True,
-            "cache": True
+            "cache": True,
+            "database": get_database_stats().get("available", False)
         }
     }
 
@@ -257,6 +281,9 @@ async def search_company(q: str, request: Request = None):
                     "remaining": rate_info.get('remaining', 0),
                 }
             )
+    
+    # Získať user IP pre analytics
+    user_ip = request.client.host if request and request.client else None
     
     """
     """

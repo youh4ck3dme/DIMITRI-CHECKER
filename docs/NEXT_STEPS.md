@@ -53,7 +53,7 @@
 ### 3. Persistence & Caching (Výkon) ✅ ČIASTOČNE DOKONČENÉ
 **Čas:** 3-5 dní
 
-- [ ] PostgreSQL databáza pre históriu (pending)
+- [x] PostgreSQL databáza pre históriu ✅ DOKONČENÉ
 - [x] Redis cache pre API odpovede (in-memory cache implementovaný)
 - [x] TTL stratégia (24h pre firmy)
 - [x] Cache invalidation mechanizmus
