@@ -5,7 +5,12 @@ import SEOHead from '../components/SEOHead';
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <>
+      <SEOHead 
+        title="Ochrana súkromia | ILUMINATI SYSTEM"
+        description="Zásady ochrany súkromia a spracovania osobných údajov v súlade s GDPR."
+      />
+      <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-8 py-12">
         <Link to="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6">
           <ArrowLeft size={18} />
