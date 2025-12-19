@@ -2,8 +2,28 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Plugin to fix prop-types CommonJS issue
+const fixPropTypesPlugin = () => ({
+  name: 'fix-prop-types',
+  enforce: 'pre',
+  resolveId(id) {
+    if (id === 'prop-types') {
+      return { id: 'prop-types', moduleSideEffects: false }
+    }
+    return null
+  },
+  load(id) {
+    if (id === 'prop-types') {
+      // Return empty module - prop-types will be handled by optimizeDeps
+      return 'export default {};'
+    }
+    return null
+  }
+})
+
 export default defineConfig({
   plugins: [
+    fixPropTypesPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -79,17 +99,14 @@ export default defineConfig({
     })
   ],
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', 'react-router-dom', 'prop-types'],
     esbuildOptions: {
       mainFields: ['module', 'main'],
       resolveExtensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx']
     }
   },
   resolve: {
-    dedupe: ['react', 'react-dom'],
-    alias: {
-      'react-force-graph-2d': 'react-force-graph-2d/dist/react-force-graph-2d.mjs'
-    }
+    dedupe: ['react', 'react-dom', 'prop-types']
   },
   build: {
     rollupOptions: {
