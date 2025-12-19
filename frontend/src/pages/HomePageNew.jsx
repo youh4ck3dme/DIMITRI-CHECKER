@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, ShieldAlert, ShieldCheck, Activity, Lock, 
@@ -76,7 +76,7 @@ export default function HomePageNew() {
     },
   });
 
-  const handleSearch = async (e) => {
+  const handleSearch = useCallback(async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
 
@@ -105,7 +105,7 @@ export default function HomePageNew() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query]);
 
   // Helper: Get risk score from node
   const getRiskScore = (nodes) => {
