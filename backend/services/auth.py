@@ -106,6 +106,16 @@ def get_user_by_stripe_customer_id(db: Session, stripe_customer_id: str) -> Opti
     return db.query(User).filter(User.stripe_customer_id == stripe_customer_id).first()
 
 
+def update_user_stripe_customer_id(db: Session, user_id: int, stripe_customer_id: str) -> bool:
+    """Aktualizuje Stripe customer ID používateľa"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return False
+    user.stripe_customer_id = stripe_customer_id
+    db.commit()
+    return True
+
+
 def create_user(db: Session, email: str, password: str, full_name: Optional[str] = None) -> User:
     """Vytvorí nového používateľa"""
     hashed_password = get_password_hash(password)

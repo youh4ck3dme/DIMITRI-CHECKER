@@ -12,7 +12,7 @@ Customer ID Mapping Flow:
 import os
 import stripe
 from typing import Optional, Dict
-from services.auth import UserTier, update_user_tier
+from services.auth import UserTier, update_user_tier, get_user_by_stripe_customer_id, update_user_stripe_customer_id
 from services.database import get_db_session
 
 # Stripe konfigurácia
@@ -46,40 +46,36 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
         Dict s checkout session URL
     """
     try:
-        price_id = PRICES.get(tier)
-        
-        # Ak nie je price_id, vytvoriť price
-        if not price_id or price_id.startswith("price_"):
-            # Použiť existujúci price_id
-            pass
-        else:
-            # Vytvoriť nový price (pre testovanie)
-            price_id = None
-        
-        # Get or create Stripe customer
-        # First, try to get existing customer by email
-        customers = stripe.Customer.list(email=user_email, limit=1)
-        if customers.data:
-            customer = customers.data[0]
-        else:
-            # Create new customer if not exists
-            customer = stripe.Customer.create(
-                email=user_email,
-                metadata={'user_id': str(user_id)}
-            )
-        
-        # Store Stripe customer ID in database
+        # Získať alebo vytvoriť Stripe customer
         with get_db_session() as db:
             if db:
-                from services.auth import User
-                user = db.query(User).filter(User.id == user_id).first()
-                if user and user.stripe_customer_id != customer.id:
-                    user.stripe_customer_id = customer.id
-                    db.commit()
+                from services.auth import get_user_by_email
+                user = get_user_by_email(db, user_email)
+                customer_id = None
+                
+                if user and user.stripe_customer_id:
+                    # Použiť existujúci customer ID
+                    customer_id = user.stripe_customer_id
+                else:
+                    # Vytvoriť nový Stripe customer
+                    customer = stripe.Customer.create(
+                        email=user_email,
+                        metadata={
+                            'user_id': str(user_id),
+                        }
+                    )
+                    customer_id = customer.id
+                    
+                    # Uložiť customer ID do databázy
+                    if user:
+                        update_user_stripe_customer_id(db, user_id, customer_id)
         
-        # Vytvoriť checkout session
+        price_id = PRICES.get(tier)
+        
+        # Vytvoriť checkout session s customer ID
         checkout_session = stripe.checkout.Session.create(
-            customer=customer.id,  # Use customer ID instead of customer_email
+            customer=customer_id if customer_id else None,
+            customer_email=user_email if not customer_id else None,
             payment_method_types=['card'],
             line_items=[{
                 'price_data': {
@@ -107,7 +103,8 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
         return {
             "session_id": checkout_session.id,
             "url": checkout_session.url,
-            "status": "created"
+            "status": "created",
+            "customer_id": customer_id
         }
     except Exception as e:
         return {
@@ -149,16 +146,21 @@ def handle_webhook(payload: bytes, signature: str) -> Dict:
         user_id = int(session['metadata']['user_id'])
         tier_str = session['metadata']['tier']
         tier = UserTier(tier_str)
+        customer_id = session.get('customer')
         
-        # Aktualizovať tier používateľa
+        # Aktualizovať tier používateľa a uložiť customer ID ak existuje
         with get_db_session() as db:
             if db:
                 update_user_tier(db, user_id, tier)
+                # Uložiť Stripe customer ID ak ešte nie je uložený
+                if customer_id:
+                    update_user_stripe_customer_id(db, user_id, customer_id)
         
         return {
             "status": "success",
             "user_id": user_id,
-            "tier": tier_str
+            "tier": tier_str,
+            "customer_id": customer_id
         }
     
     elif event['type'] == 'customer.subscription.deleted':
@@ -170,20 +172,26 @@ def handle_webhook(payload: bytes, signature: str) -> Dict:
         if customer_id:
             with get_db_session() as db:
                 if db:
-                    from services.auth import get_user_by_stripe_customer_id
                     user = get_user_by_stripe_customer_id(db, customer_id)
                     if user:
                         update_user_tier(db, user.id, UserTier.FREE)
                         return {
                             "status": "success",
                             "action": "downgrade_to_free",
-                            "user_id": user.id
+                            "user_id": user.id,
+                            "customer_id": customer_id
+                        }
+                    else:
+                        return {
+                            "status": "warning",
+                            "action": "downgrade_to_free",
+                            "message": f"User not found for customer_id: {customer_id}"
                         }
         
         return {
-            "status": "success",
+            "status": "error",
             "action": "downgrade_to_free",
-            "note": "No user found for customer_id"
+            "message": "No customer_id in subscription"
         }
     
     return {"status": "ignored", "event_type": event['type']}

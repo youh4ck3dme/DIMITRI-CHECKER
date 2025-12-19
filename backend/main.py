@@ -35,7 +35,8 @@ from services.stripe_service import (
 from services.auth import (
     User, UserTier, create_user, authenticate_user, get_user_by_email,
     create_access_token, decode_access_token, get_user_tier_limits,
-    get_password_hash, verify_password, update_user_tier
+    get_password_hash, verify_password, update_user_tier,
+    get_user_by_stripe_customer_id, update_user_stripe_customer_id
 )
 from services.database import get_db_session, init_database
 
