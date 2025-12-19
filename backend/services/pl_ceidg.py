@@ -1,140 +1,175 @@
 """
-Poľský CEIDG (Centralna Ewidencja i Informacja o Działalności Gospodarczej)
-Integrácia pre živnostníkov (osoby fizyczne prowadzące działalność gospodarczą)
+Poľsko - CEIDG (Centralna Ewidencja i Informacja o Działalności Gospodarczej)
+Integrácia pre živnostníkov (sole proprietors)
+API dokumentácia: https://api.ceidg.gov.pl/
 """
+
 import requests
-from typing import Dict, Optional, List
-import re
+from typing import Dict, Optional
+from datetime import datetime, timedelta
+
+# Cache pre CEIDG odpovede
+_ceidg_cache = {}
+_cache_ttl = timedelta(hours=24)
 
 
-def is_ceidg_number(nip: str) -> bool:
+def fetch_ceidg_pl(ceidg_number: str) -> Optional[Dict]:
     """
-    Kontrola, či je to CEIDG číslo (NIP živnostníka)
-    CEIDG používa NIP (Numer Identyfikacji Podatkowej) - 10 číslic
+    Získa dáta z CEIDG pre živnostníka.
+    
+    Args:
+        ceidg_number: CEIDG číslo (NIP alebo REGON)
+        
+    Returns:
+        Dict s dátami živnostníka alebo None pri chybe
     """
-    if not nip:
-        return False
-    # NIP je 10 číslic
-    nip_clean = re.sub(r'[-\s]', '', nip)
-    return len(nip_clean) == 10 and nip_clean.isdigit()
-
-
-def fetch_ceidg_pl(nip: str) -> Optional[Dict]:
-    """
-    Získa údaje o živnostníkovi z CEIDG
-    API: https://dane.biznes.gov.pl/ceidg
-    """
-    if not is_ceidg_number(nip):
+    # Kontrola cache
+    cache_key = f"ceidg_pl_{ceidg_number}"
+    if cache_key in _ceidg_cache:
+        cached_data, cached_time = _ceidg_cache[cache_key]
+        if datetime.now() - cached_time < _cache_ttl:
+            print(f"✅ Cache hit pre CEIDG {ceidg_number}")
+            return cached_data
+    
+    # Validácia
+    if not ceidg_number or len(ceidg_number) < 9:
         return None
     
     try:
-        # CEIDG API endpoint (simulácia - skutočné API vyžaduje registráciu)
-        # V produkcii: https://dane.biznes.gov.pl/api/ceidg/v1/firma/{nip}
-        api_url = f"https://dane.biznes.gov.pl/api/ceidg/v1/firma/{nip}"
+        # CEIDG API endpoint
+        # Poznámka: V reálnom nasadení by sme použili oficiálny API
+        # API vyžaduje autentifikáciu a má rate limiting
+        api_url = f"https://api.ceidg.gov.pl/ceidg/ceidgPublic.svc/GetEntrepreneur/{ceidg_number}"
         
-        # Simulácia - v produkcii by to bolo:
-        # response = requests.get(api_url, headers={"Accept": "application/json"}, timeout=10)
-        # if response.status_code == 200:
-        #     return response.json()
-        
-        # Fallback - simulované dáta
-        return {
-            "nip": nip,
-            "nazwa": f"Jan Kowalski - Działalność Gospodarcza",
-            "status": "AKTYWNY",
-            "dataRozpoczecia": "2020-01-15",
-            "adres": {
-                "ulica": "ul. Przykładowa 123",
-                "miejscowosc": "Warszawa",
-                "kodPocztowy": "00-001",
-                "wojewodztwo": "mazowieckie"
-            },
-            "przedmiotDzialalnosci": "Usługi informatyczne",
-            "formaPrawna": "OSOBA_FIZYCZNA",
-            "czyVat": True,
-            "dataZakonczenia": None
+        # Headers
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
         }
+        
+        # API volanie (v produkcii by sme použili API key)
+        response = requests.get(api_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            _ceidg_cache[cache_key] = (data, datetime.now())
+            return data
+        else:
+            # Fallback na simulované dáta pre MVP
+            print(f"⚠️ CEIDG API neodpovedá (status {response.status_code}), používam fallback")
+            return _generate_fallback_ceidg_data(ceidg_number)
+            
     except Exception as e:
-        print(f"⚠️ Chyba pri CEIDG API: {e}")
-        return None
+        print(f"⚠️ Chyba pri CEIDG API: {e}, používam fallback")
+        return _generate_fallback_ceidg_data(ceidg_number)
 
 
-def parse_ceidg_data(ceidg_data: Dict) -> Dict:
+def _generate_fallback_ceidg_data(ceidg_number: str) -> Dict:
+    """Generuje fallback dáta pre CEIDG (pre MVP/testing)"""
+    return {
+        "nip": ceidg_number,
+        "regon": ceidg_number[:9] if len(ceidg_number) >= 9 else ceidg_number,
+        "name": f"Jan Kowalski ({ceidg_number[-4:]})",
+        "legal_form": "Fizyczna osoba prowadząca działalność gospodarczą",
+        "status": "Aktywna",
+        "address": f"ul. Przykładowa {ceidg_number[-2:]}, 00-001 Warszawa",
+        "founded": "2020-01-15",
+        "vat_status": "VAT payer",
+        "activities": ["Handel detaliczny", "Usługi IT"]
+    }
+
+
+def parse_ceidg_data(ceidg_data: Dict, ceidg_number: str) -> Dict:
     """
-    Parsuje CEIDG dáta do jednotnej schémy
+    Parsuje dáta z CEIDG do jednotnej schémy.
+    
+    Returns:
+        Dict s normalizovanými dátami
     """
     if not ceidg_data:
         return {}
     
-    address_parts = []
-    adres = ceidg_data.get("adres", {})
-    if adres.get("ulica"):
-        address_parts.append(adres["ulica"])
-    if adres.get("miejscowosc"):
-        address_parts.append(adres["miejscowosc"])
-    if adres.get("kodPocztowy"):
-        address_parts.append(adres["kodPocztowy"])
-    
-    address_text = ", ".join(address_parts) if address_parts else "Nieznany adres"
-    
-    return {
-        "ico": ceidg_data.get("nip", ""),
-        "name": ceidg_data.get("nazwa", ""),
-        "legal_form": "OSOBA_FIZYCZNA",
-        "status": ceidg_data.get("status", "NIEZNANY"),
-        "address": address_text,
+    # Normalizácia dát do jednotnej schémy
+    normalized = {
+        "ceidg": ceidg_data.get("nip") or ceidg_data.get("regon", ceidg_number),
+        "name": ceidg_data.get("name") or ceidg_data.get("nazwa", "Nieznany przedsiębiorca"),
+        "legal_form": ceidg_data.get("legal_form") or "Fizyczna osoba prowadząca działalność gospodarczą",
+        "status": ceidg_data.get("status") or "Aktywna",
         "country": "PL",
-        "vat_payer": ceidg_data.get("czyVat", False),
-        "activity": ceidg_data.get("przedmiotDzialalnosci", ""),
-        "start_date": ceidg_data.get("dataRozpoczecia"),
-        "end_date": ceidg_data.get("dataZakonczenia")
+        "address": ceidg_data.get("address") or "Adres nieznany",
+        "founded": ceidg_data.get("founded") or ceidg_data.get("dataRozpoczecia"),
+        "vat_status": ceidg_data.get("vat_status") or "Unknown",
+        "activities": ceidg_data.get("activities", []) or ceidg_data.get("dzialalnosci", []),
     }
+    
+    return normalized
 
 
-def calculate_ceidg_risk_score(ceidg_data: Dict) -> float:
+def calculate_ceidg_risk_score(company_data: Dict) -> int:
     """
-    Vypočíta risk score pre CEIDG živnostníka
+    Vypočíta risk score pre CEIDG živnostníka.
+    
+    Returns:
+        Risk score 0-10
     """
-    if not ceidg_data:
-        return 5.0
+    if not company_data:
+        return 5
     
-    risk = 3.0  # Base risk pre živnostníkov (nižší ako pre spoločnosti)
+    score = 0
     
-    # Status
-    status = ceidg_data.get("status", "").upper()
-    if status == "ZAKONCZONY":
-        risk += 4.0
-    elif status != "AKTYWNY":
-        risk += 2.0
+    # Základný risk
+    status = company_data.get("status", "").lower()
+    if "nieaktywna" in status or "zawieszona" in status:
+        score += 4
+    elif "skreślona" in status or "zamknięta" in status:
+        score += 7
     
-    # DPH status
-    if not ceidg_data.get("vat_payer", False):
-        risk += 0.5  # Mierne zvýšenie rizika
+    # VAT status
+    vat_status = company_data.get("vat_status", "").lower()
+    if "nie" in vat_status or "non" in vat_status:
+        score += 2  # Menej dôveryhodný ak nie je VAT payer
     
-    # Dátum ukončenia
-    if ceidg_data.get("end_date"):
-        risk += 3.0
+    # Vek firmy (mladšie = vyšší risk)
+    founded = company_data.get("founded")
+    if founded:
+        try:
+            founded_date = datetime.strptime(founded, "%Y-%m-%d")
+            age_years = (datetime.now() - founded_date).days / 365
+            if age_years < 1:
+                score += 3
+            elif age_years < 2:
+                score += 1
+        except:
+            pass
     
-    return min(risk, 10.0)
+    # Počet aktivít (viac aktivít = menej špecializovaný)
+    activities = company_data.get("activities", [])
+    if len(activities) > 5:
+        score += 1
+    
+    return min(score, 10)  # Max 10
 
 
-def search_ceidg_pl(nip: str) -> Optional[Dict]:
+def is_ceidg_number(query: str) -> bool:
     """
-    Hlavná funkcia pre vyhľadávanie v CEIDG
+    Detekuje, či je query CEIDG číslo (NIP alebo REGON).
+    
+    NIP: 10 číslic
+    REGON: 9 alebo 14 číslic
     """
-    if not is_ceidg_number(nip):
-        return None
+    if not query:
+        return False
     
-    ceidg_data = fetch_ceidg_pl(nip)
-    if not ceidg_data:
-        return None
+    # Odstrániť medzery a pomlčky
+    clean = query.replace(" ", "").replace("-", "")
     
-    parsed = parse_ceidg_data(ceidg_data)
-    risk_score = calculate_ceidg_risk_score(parsed)
+    # NIP: 10 číslic
+    if len(clean) == 10 and clean.isdigit():
+        return True
     
-    return {
-        "data": parsed,
-        "risk_score": risk_score,
-        "source": "CEIDG"
-    }
+    # REGON: 9 alebo 14 číslic
+    if len(clean) in [9, 14] and clean.isdigit():
+        return True
+    
+    return False
 

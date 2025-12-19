@@ -10,8 +10,8 @@ from datetime import datetime
 # Import nových služieb
 from services.sk_rpo import fetch_rpo_sk, parse_rpo_data, calculate_sk_risk_score, is_slovak_ico
 from services.pl_krs import fetch_krs_pl, parse_krs_data, calculate_pl_risk_score, is_polish_krs
-from services.pl_ceidg import search_ceidg_pl, is_ceidg_number
-from services.pl_biala_lista import search_biala_lista_pl, is_polish_nip, get_vat_status_pl
+from services.pl_ceidg import fetch_ceidg_pl, parse_ceidg_data, calculate_ceidg_risk_score, is_ceidg_number
+from services.pl_biala_lista import fetch_biala_lista_pl, parse_biala_lista_data, get_vat_status_pl, is_polish_nip
 from services.hu_nav import fetch_nav_hu, parse_nav_data, calculate_hu_risk_score, is_hungarian_tax_number
 from services.debt_registers import search_debt_registers, has_debt
 from services.risk_intelligence import generate_risk_report, calculate_enhanced_risk_score
@@ -22,8 +22,12 @@ from services.database import (
     save_company_cache, get_company_cache, save_analytics,
     get_database_stats, cleanup_expired_cache
 )
+from services.error_handler import error_handler, log_error, safe_api_call
 
 app = FastAPI(title="ILUMINATI SYSTEM API", version="5.0")
+
+# Global error handler
+app.add_exception_handler(Exception, error_handler)
 
 # Inicializovať databázu pri štarte
 @app.on_event("startup")
@@ -386,15 +390,25 @@ async def search_company(q: str, request: Request = None):
             normalized = parse_krs_data(krs_data, query_clean)
             risk_score = calculate_pl_risk_score(normalized)
             
+            # Biała Lista - VAT status check
+            nip = normalized.get("nip") or query_clean
+            if is_polish_nip(nip):
+                vat_status = get_vat_status_pl(nip)
+                if vat_status:
+                    normalized["vat_status"] = vat_status
+                    if vat_status != "VAT payer":
+                        risk_score = max(risk_score, 3)  # Zvýšiť risk ak nie je VAT payer
+            
             # Hlavná firma
             company_id = f"pl_{query_clean}"
+            vat_info = f", VAT: {normalized.get('vat_status', 'N/A')}" if normalized.get('vat_status') else ""
             nodes.append(Node(
                 id=company_id,
                 label=normalized.get("name", f"Firma {query_clean}"),
                 type="company",
                 country="PL",
                 risk_score=risk_score,
-                details=f"KRS: {query_clean}, Status: {normalized.get('status', 'N/A')}, Forma: {normalized.get('legal_form', 'N/A')}",
+                details=f"KRS: {query_clean}, Status: {normalized.get('status', 'N/A')}, Forma: {normalized.get('legal_form', 'N/A')}{vat_info}",
                 ico=query_clean
             ))
             
@@ -447,8 +461,6 @@ async def search_company(q: str, request: Request = None):
             normalized = parse_rpo_data(rpo_data, query_clean)
             risk_score = calculate_sk_risk_score(normalized)
             
-            # Hlavná firma
-            company_id = f"sk_{query_clean}"
             # Dlhové registry - Finančná správa SR
             debt_result = search_debt_registers(query_clean, "SK")
             if debt_result and debt_result.get("data", {}).get("has_debt"):
@@ -456,6 +468,8 @@ async def search_company(q: str, request: Request = None):
                 debt_risk = debt_result.get("risk_score", 0)
                 risk_score = max(risk_score, debt_risk)  # Použiť vyšší risk
             
+            # Hlavná firma
+            company_id = f"sk_{query_clean}"
             company_name = normalized.get("name", f"Firma {query_clean}")
             if debt_result and debt_result.get("data", {}).get("has_debt"):
                 company_name += " [DLH]"
