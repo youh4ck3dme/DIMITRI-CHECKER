@@ -18,7 +18,7 @@
 | **Risk Intelligence** | 100% | ✅ Hotovo |
 | **Performance & Optimization** | 100% | ✅ Hotovo |
 | **Documentation** | 100% | ✅ Hotovo |
-| **Testing** | 60% | ⚠️ Potrebuje prácu |
+| **Testing** | 75% | ⚠️ Vylepšené, stále potrebuje prácu |
 | **Authentication & Monetization** | 0% | ❌ Nezačaté |
 | **Enterprise Features** | 0% | ❌ Nezačaté |
 
@@ -148,29 +148,32 @@
 ### 1. Testing (60%) - **PRIORITA**
 
 #### Aktuálny stav testov:
-- **Celková úspešnosť:** 50% (3/6 test suites)
-- **Počet test súborov:** 8
+- **Celková úspešnosť:** ~75% (vylepšené z 50%)
+- **Počet test súborov:** 9
 
 #### ✅ Prechádzajúce testy:
 - ✅ Performance tests (7/7)
 - ✅ Proxy rotation tests (8/8)
 - ✅ Frontend build tests
+- ✅ API endpoints tests (9/9) - NOVÉ
+- ✅ Backend API tests - OPRAVENÉ
+- ✅ Integration tests - OPRAVENÉ
 
-#### ❌ Zlyhávajúce testy:
-- ❌ Backend API tests - Potrebuje opravu
-- ❌ New features tests - Potrebuje opravu
-- ❌ Integration tests - Potrebuje opravu
+#### ⚠️ Čiastočne prechádzajúce:
+- ⚠️ New features tests - Vylepšené, niektoré môžu zlyhávať ak DB nie je dostupná
 
 #### 📋 Čo treba otestovať:
 
 **Backend Testy:**
-- [ ] Všetky API endpointy (search, health, metrics, atď.)
-- [ ] Country integrations (SK, CZ, PL, HU)
-- [ ] Cache funkcionalita
-- [ ] Rate limiting
-- [ ] Circuit breaker
-- [ ] Database operácie
-- [ ] Error handling
+- [x] Všetky API endpointy (search, health, metrics, atď.) ✅
+- [x] Country integrations (SK, CZ, PL, HU) ✅
+- [x] Cache funkcionalita ✅
+- [x] Rate limiting ✅
+- [x] Circuit breaker ✅
+- [x] Database operácie ✅ (s fallback ak DB nie je dostupná)
+- [x] Error handling ✅
+- [x] Proxy rotation ✅
+- [x] Performance utilities ✅
 
 **Frontend Testy:**
 - [ ] React komponenty
@@ -186,7 +189,7 @@
 - [ ] Database integration
 - [ ] External API calls
 
-**Odhadovaný čas na dokončenie testov:** 2-3 dni
+**Odhadovaný čas na dokončenie testov:** 1-2 dni (väčšina je hotová)
 
 ### 2. Authentication & Monetization (0%)
 
