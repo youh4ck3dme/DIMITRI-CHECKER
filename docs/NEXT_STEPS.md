@@ -148,7 +148,7 @@
 - [x] Error boundaries ✅ DOKONČENÉ
 - [x] Service Worker (PWA) ✅ DOKONČENÉ
 - [x] Offline mode ✅ DOKONČENÉ
-- [ ] Performance optimization
+- [x] Performance optimization ✅ DOKONČENÉ
 - [x] SEO meta tags ✅ DOKONČENÉ
 
 ## 📝 Dokumentácia
