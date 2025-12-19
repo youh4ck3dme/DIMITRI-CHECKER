@@ -2,15 +2,20 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Plugin to ensure prop-types is handled correctly
+// Plugin to fix prop-types CommonJS to ESM conversion
 const fixPropTypesPlugin = () => ({
   name: 'fix-prop-types',
   enforce: 'pre',
-  configResolved(config) {
-    // Ensure prop-types is in optimizeDeps
-    if (!config.optimizeDeps.include.includes('prop-types')) {
-      config.optimizeDeps.include.push('prop-types')
+  transform(code, id) {
+    // Transform prop-types imports in node_modules
+    if (id.includes('node_modules') && code.includes("from 'prop-types'") || code.includes('from "prop-types"')) {
+      // Replace CommonJS-style prop-types imports
+      return code.replace(
+        /import\s+PropTypes\s+from\s+['"]prop-types['"]/g,
+        "import PropTypes from 'prop-types/index.js'"
+      )
     }
+    return null
   }
 })
 
