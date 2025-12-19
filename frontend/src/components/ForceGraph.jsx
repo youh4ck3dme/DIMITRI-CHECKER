@@ -5,7 +5,7 @@ import React, { useRef, useState, useCallback, useEffect, memo } from 'react';
 // #region agent log
 fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ForceGraph.jsx:5',message:'Before ForceGraph2D import',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
 // #endregion
-import ForceGraph2D from 'react-force-graph-2d';
+import ForceGraph2D from 'react-force-graph-2d/dist/react-force-graph-2d.mjs';
 // #region agent log
 fetch('http://127.0.0.1:7243/ingest/6df07fcf-4b08-4bfb-a01f-2db77f7258f1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ForceGraph.jsx:7',message:'After ForceGraph2D import',data:{hasForceGraph2D:!!ForceGraph2D},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
 // #endregion

@@ -79,16 +79,17 @@ export default defineConfig({
     })
   ],
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'prop-types'],
+    include: ['react', 'react-dom', 'react-router-dom'],
     esbuildOptions: {
       mainFields: ['module', 'main'],
-      resolveExtensions: ['.js', '.jsx', '.ts', '.tsx'],
-      format: 'esm'
-    },
-    force: true
+      resolveExtensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx']
+    }
   },
   resolve: {
-    dedupe: ['react', 'react-dom', 'prop-types']
+    dedupe: ['react', 'react-dom'],
+    alias: {
+      'react-force-graph-2d': 'react-force-graph-2d/dist/react-force-graph-2d.mjs'
+    }
   },
   build: {
     rollupOptions: {
