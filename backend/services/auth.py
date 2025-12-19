@@ -42,6 +42,7 @@ class User(Base):
     is_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_login = Column(DateTime, nullable=True)
+    stripe_customer_id = Column(String, unique=True, index=True, nullable=True)  # Stripe customer ID for subscription management
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -79,6 +80,11 @@ def decode_access_token(token: str) -> Optional[Dict]:
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     """Získa používateľa podľa emailu"""
     return db.query(User).filter(User.email == email).first()
+
+
+def get_user_by_stripe_customer_id(db: Session, stripe_customer_id: str) -> Optional[User]:
+    """Získa používateľa podľa Stripe customer ID"""
+    return db.query(User).filter(User.stripe_customer_id == stripe_customer_id).first()
 
 
 def create_user(db: Session, email: str, password: str, full_name: Optional[str] = None) -> User:
