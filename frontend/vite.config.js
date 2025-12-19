@@ -8,22 +8,16 @@ const propTypesPlugin = () => ({
   enforce: 'pre',
   resolveId(id) {
     if (id === 'prop-types') {
-      return id
+      return { id: 'prop-types', moduleSideEffects: false }
     }
+    return null
   },
   load(id) {
     if (id === 'prop-types') {
-      // Vrátiť ESM wrapper pre prop-types
-      return `
-        import PropTypes from 'prop-types/index.js';
-        export default PropTypes;
-        export const { 
-          array, bool, func, number, object, string, symbol, 
-          any, arrayOf, element, elementType, instanceOf, 
-          node, objectOf, oneOf, oneOfType, shape, exact 
-        } = PropTypes;
-      `
+      // Vrátiť ESM wrapper - Vite automaticky transformuje CommonJS
+      return null // Necháme Vite spracovať to automaticky
     }
+    return null
   }
 })
 
@@ -105,7 +99,7 @@ export default defineConfig({
     })
   ],
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', 'react-router-dom', 'prop-types'],
     esbuildOptions: {
       mainFields: ['module', 'main'],
       resolveExtensions: ['.js', '.jsx', '.ts', '.tsx']
