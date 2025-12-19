@@ -70,7 +70,7 @@
 - [x] White Horse Detector algoritmus
 - [x] Detekcia karuselových štruktúr
 - [x] Vylepšený risk score algoritmus
-- [ ] PDF reporty s risk analýzou (pending)
+- [x] PDF reporty s risk analýzou ✅ DOKONČENÉ
 
 **Výhody:**
 - Skutočná business hodnota
@@ -146,7 +146,7 @@
 
 ### Frontend
 - [x] Error boundaries ✅ DOKONČENÉ
-- [ ] Service Worker (PWA)
+- [x] Service Worker (PWA) ✅ DOKONČENÉ
 - [ ] Offline mode
 - [ ] Performance optimization
 - [x] SEO meta tags ✅ DOKONČENÉ
