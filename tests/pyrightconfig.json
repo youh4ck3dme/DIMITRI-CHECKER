@@ -1,5 +1,6 @@
 {
   "include": [
+    ".",
     "../backend"
   ],
   "exclude": [
@@ -9,7 +10,7 @@
   ],
   "executionEnvironments": [
     {
-      "root": "../backend",
+      "root": ".",
       "pythonVersion": "3.14",
       "pythonPlatform": "Darwin",
       "extraPaths": [
@@ -26,4 +27,3 @@
   "reportMissingModuleSource": "none",
   "reportMissingTypeStubs": "none"
 }
-
