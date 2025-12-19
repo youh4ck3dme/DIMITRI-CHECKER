@@ -7,6 +7,7 @@ import requests
 from typing import Dict, List, Optional
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+from services.circuit_breaker import get_circuit_breaker, CircuitBreakerOpenError
 
 # Cache pre RPO odpovede (in-memory, neskôr Redis)
 _rpo_cache = {}

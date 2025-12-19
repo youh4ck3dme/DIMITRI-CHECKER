@@ -10,8 +10,8 @@ from datetime import datetime
 # Import nových služieb
 from services.sk_rpo import fetch_rpo_sk, parse_rpo_data, calculate_sk_risk_score, is_slovak_ico
 from services.pl_krs import fetch_krs_pl, parse_krs_data, calculate_pl_risk_score, is_polish_krs
-from services.pl_ceidg import search_ceidg_pl, is_ceidg_number
-from services.pl_biala_lista import search_biala_lista_pl, is_polish_nip, get_vat_status_pl
+from services.pl_ceidg import fetch_ceidg_pl, parse_ceidg_data, calculate_ceidg_risk_score, is_ceidg_number
+from services.pl_biala_lista import fetch_biala_lista_pl, parse_biala_lista_data, get_vat_status_pl, is_polish_nip
 from services.hu_nav import fetch_nav_hu, parse_nav_data, calculate_hu_risk_score, is_hungarian_tax_number
 from services.debt_registers import search_debt_registers, has_debt
 from services.risk_intelligence import generate_risk_report, calculate_enhanced_risk_score
@@ -22,8 +22,21 @@ from services.database import (
     save_company_cache, get_company_cache, save_analytics,
     get_database_stats, cleanup_expired_cache
 )
+from services.error_handler import error_handler, log_error, safe_api_call
+from services.circuit_breaker import get_all_breakers, reset_breaker
+from services.metrics import get_metrics, increment, timer, TimerContext, record_event, gauge
 
-app = FastAPI(title="ILUMINATI SYSTEM API", version="5.0")
+app = FastAPI(
+    title="ILUMINATI SYSTEM API",
+    version="5.0",
+    description="Cross-border company registry search API for V4 countries (SK, CZ, PL, HU)",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
+)
+
+# Global error handler
+app.add_exception_handler(Exception, error_handler)
 
 # Inicializovať databázu pri štarte
 @app.on_event("startup")
@@ -126,6 +139,22 @@ async def database_stats():
 async def search_history(limit: int = 100, country: Optional[str] = None):
     """Vráti históriu vyhľadávaní"""
     return get_search_history(limit=limit, country=country)
+
+@app.get("/api/circuit-breaker/stats")
+async def circuit_breaker_stats():
+    """Vráti štatistiky circuit breakerov"""
+    return get_all_breakers()
+
+@app.post("/api/circuit-breaker/reset/{name}")
+async def reset_circuit_breaker(name: str):
+    """Resetuje circuit breaker"""
+    reset_breaker(name)
+    return {"status": "ok", "message": f"Circuit breaker '{name}' reset"}
+
+@app.get("/api/metrics")
+async def metrics():
+    """Vráti metríky"""
+    return get_metrics().get_metrics()
 
 @app.get("/api/health")
 def health_check():
@@ -265,28 +294,65 @@ def generate_test_data_sk(ico: str):
 
 
 
-@app.get("/api/search", response_model=GraphResponse)
-async def search_company(q: str, request: Request = None):
+@app.get("/api/search", response_model=GraphResponse, tags=["Search"])
+async def search_company(
+    q: str,
+    request: Request = None,
+    response_model_examples={
+        "slovak_ico": {
+            "summary": "Slovak IČO search",
+            "value": {
+                "q": "88888888"
+            }
+        },
+        "czech_ico": {
+            "summary": "Czech IČO search",
+            "value": {
+                "q": "27074358"
+            }
+        },
+        "polish_krs": {
+            "summary": "Polish KRS search",
+            "value": {
+                "q": "123456789"
+            }
+        }
+    }
+):
     """
-    Orchestrátor vyhľadávania s podporou SK a CZ.
-    """
-    # Rate limiting
-    if request:
-        client_id = get_client_id(request)
-        allowed, rate_info = is_allowed(client_id, tokens_required=1, tier='free')
-        if not allowed:
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "error": "Rate limit exceeded",
-                    "message": f"Príliš veľa požiadaviek. Skúste znova o {rate_info.get('retry_after', 60)} sekúnd.",
-                    "retry_after": rate_info.get('retry_after', 60),
-                    "remaining": rate_info.get('remaining', 0),
-                }
-            )
+    Orchestrátor vyhľadávania s podporou V4 krajín (SK, CZ, PL, HU).
     
-    # Získať user IP pre analytics
-    user_ip = request.client.host if request and request.client else None
+    Automaticky detekuje typ identifikátora a routuje na príslušný register:
+    - SK: 8-miestne IČO → RPO (Register právnych osôb)
+    - CZ: 8-9 miestne IČO → ARES
+    - PL: KRS alebo CEIDG → KRS/CEIDG
+    - HU: 8-11 miestny adószám → NAV
+    
+    Returns:
+        GraphResponse: Graf s nodes (firmy, osoby, adresy) a edges (vzťahy)
+    """
+    # Metrics - začať timer
+    with TimerContext("search.duration"):
+        increment("search.requests")
+        
+        # Rate limiting
+        if request:
+            client_id = get_client_id(request)
+            allowed, rate_info = is_allowed(client_id, tokens_required=1, tier='free')
+            if not allowed:
+                increment("search.rate_limited")
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "error": "Rate limit exceeded",
+                        "message": f"Príliš veľa požiadaviek. Skúste znova o {rate_info.get('retry_after', 60)} sekúnd.",
+                        "retry_after": rate_info.get('retry_after', 60),
+                        "remaining": rate_info.get('remaining', 0),
+                    }
+                )
+        
+        # Získať user IP pre analytics
+        user_ip = request.client.host if request and request.client else None
     
     """
     """
@@ -301,7 +367,10 @@ async def search_company(q: str, request: Request = None):
     cached_result = get(cache_key)
     if cached_result:
         print(f"✅ Cache hit pre query: {query_clean}")
+        increment("search.cache_hits")
         return GraphResponse(**cached_result)
+    
+    increment("search.cache_misses")
     
     # Kontrola testovacieho IČO (slovenské 8-miestne)
     if query_clean == "88888888":
@@ -319,6 +388,7 @@ async def search_company(q: str, request: Request = None):
     if is_hungarian_tax_number(query_clean):
         # MAĎARSKÝ ADÓSZÁM - NAV integrácia
         print(f"🇭🇺 Detekované maďarský adószám: {query_clean}")
+        increment("search.by_country", tags={"country": "HU"})
         nav_data = fetch_nav_hu(query_clean)
         
         if nav_data:
@@ -380,21 +450,32 @@ async def search_company(q: str, request: Request = None):
     elif is_polish_krs(query_clean):
         # POĽSKÉ KRS - KRS integrácia
         print(f"🇵🇱 Detekované poľské KRS: {query_clean}")
+        increment("search.by_country", tags={"country": "PL"})
         krs_data = fetch_krs_pl(query_clean)
         
         if krs_data:
             normalized = parse_krs_data(krs_data, query_clean)
             risk_score = calculate_pl_risk_score(normalized)
             
+            # Biała Lista - VAT status check
+            nip = normalized.get("nip") or query_clean
+            if is_polish_nip(nip):
+                vat_status = get_vat_status_pl(nip)
+                if vat_status:
+                    normalized["vat_status"] = vat_status
+                    if vat_status != "VAT payer":
+                        risk_score = max(risk_score, 3)  # Zvýšiť risk ak nie je VAT payer
+            
             # Hlavná firma
             company_id = f"pl_{query_clean}"
+            vat_info = f", VAT: {normalized.get('vat_status', 'N/A')}" if normalized.get('vat_status') else ""
             nodes.append(Node(
                 id=company_id,
                 label=normalized.get("name", f"Firma {query_clean}"),
                 type="company",
                 country="PL",
                 risk_score=risk_score,
-                details=f"KRS: {query_clean}, Status: {normalized.get('status', 'N/A')}, Forma: {normalized.get('legal_form', 'N/A')}",
+                details=f"KRS: {query_clean}, Status: {normalized.get('status', 'N/A')}, Forma: {normalized.get('legal_form', 'N/A')}{vat_info}",
                 ico=query_clean
             ))
             
@@ -441,14 +522,13 @@ async def search_company(q: str, request: Request = None):
     elif is_slovak_ico(query_clean):
         # SLOVENSKÉ IČO - RPO integrácia
         print(f"🇸🇰 Detekované slovenské IČO: {query_clean}")
+        increment("search.by_country", tags={"country": "SK"})
         rpo_data = fetch_rpo_sk(query_clean)
         
         if rpo_data:
             normalized = parse_rpo_data(rpo_data, query_clean)
             risk_score = calculate_sk_risk_score(normalized)
             
-            # Hlavná firma
-            company_id = f"sk_{query_clean}"
             # Dlhové registry - Finančná správa SR
             debt_result = search_debt_registers(query_clean, "SK")
             if debt_result and debt_result.get("data", {}).get("has_debt"):
@@ -456,6 +536,8 @@ async def search_company(q: str, request: Request = None):
                 debt_risk = debt_result.get("risk_score", 0)
                 risk_score = max(risk_score, debt_risk)  # Použiť vyšší risk
             
+            # Hlavná firma
+            company_id = f"sk_{query_clean}"
             company_name = normalized.get("name", f"Firma {query_clean}")
             if debt_result and debt_result.get("data", {}).get("has_debt"):
                 company_name += " [DLH]"
@@ -519,6 +601,7 @@ async def search_company(q: str, request: Request = None):
     else:
         # ČESKÉ IČO alebo názov - ARES integrácia
         print(f"🇨🇿 Vyhľadávam v ARES (CZ): {query_clean}")
+        increment("search.by_country", tags={"country": "CZ"})
         ares_data = fetch_ares_cz(query_clean)
         results = ares_data.get("ekonomickeSubjekty", [])
 
@@ -640,6 +723,15 @@ async def search_company(q: str, request: Request = None):
         event_data={"query": q, "country": country, "result_count": len(nodes)},
         user_ip=user_ip
     )
+    
+    # Metrics
+    increment("search.results", value=len(nodes))
+    gauge("search.last_result_count", len(nodes))
+    record_event("search.completed", {
+        "country": country,
+        "result_count": len(nodes),
+        "query_length": len(q)
+    })
     
     return result
 

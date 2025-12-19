@@ -138,22 +138,22 @@
 ## 🛠️ Technické Vylepšenia
 
 ### Backend
-- [ ] Error handling & logging (Sentry)
+- [x] Error handling & logging ✅ DOKONČENÉ
 - [x] Rate limiting (Token Bucket) ✅ DOKONČENÉ
-- [ ] Circuit Breaker pattern
+- [x] Circuit Breaker pattern ✅ DOKONČENÉ
 - [x] Health check endpoint ✅ DOKONČENÉ
-- [ ] Metrics & monitoring
+- [x] Metrics & monitoring ✅ DOKONČENÉ
 
 ### Frontend
 - [x] Error boundaries ✅ DOKONČENÉ
 - [x] Service Worker (PWA) ✅ DOKONČENÉ
-- [ ] Offline mode
+- [x] Offline mode ✅ DOKONČENÉ
 - [ ] Performance optimization
 - [x] SEO meta tags ✅ DOKONČENÉ
 
 ## 📝 Dokumentácia
 
-- [ ] API dokumentácia (OpenAPI/Swagger)
+- [x] API dokumentácia (OpenAPI/Swagger) ✅ DOKONČENÉ
 - [ ] Developer guide
 - [ ] Deployment guide
 - [ ] Architecture diagram

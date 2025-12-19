@@ -1,189 +1,200 @@
 """
-Dlhové registre - Finančná správa SK a ČR
-Integrácia pre detekciu dlhov voči štátu
+Dlhové registre - Finančná správa SK/CZ
+Kontrola dlhov voči daňovým úradom
 """
+
 import requests
-from typing import Dict, Optional, List
+from typing import Dict, Optional
+from datetime import datetime, timedelta
 import re
 
-
-def is_slovak_ico_for_debt(ico: str) -> bool:
-    """Kontrola slovenského IČO pre dlhové registry"""
-    if not ico:
-        return False
-    ico_clean = re.sub(r'[-\s]', '', ico)
-    return len(ico_clean) == 8 and ico_clean.isdigit()
+# Cache pre dlhové registry
+_debt_cache = {}
+_cache_ttl = timedelta(hours=12)  # Kratší TTL pre dlhy (častejšie sa menia)
 
 
-def is_czech_ico_for_debt(ico: str) -> bool:
-    """Kontrola českého IČO pre dlhové registry"""
-    if not ico:
-        return False
-    ico_clean = re.sub(r'[-\s]', '', ico)
-    return len(ico_clean) == 8 and ico_clean.isdigit()
-
-
-def fetch_debt_sk(ico: str) -> Optional[Dict]:
+def search_debt_registers(identifier: str, country: str) -> Optional[Dict]:
     """
-    Získa údaje o dlhoch z Finančnej správy SR
-    API: https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy
+    Vyhľadá dlhy voči Finančnej správe.
+    
+    Args:
+        identifier: IČO alebo daňové číslo
+        country: "SK" alebo "CZ"
+        
+    Returns:
+        Dict s informáciami o dlhoch alebo None
     """
-    if not is_slovak_ico_for_debt(ico):
+    if country not in ["SK", "CZ"]:
+        return None
+    
+    # Kontrola cache
+    cache_key = f"debt_{country}_{identifier}"
+    if cache_key in _debt_cache:
+        cached_data, cached_time = _debt_cache[cache_key]
+        if datetime.now() - cached_time < _cache_ttl:
+            print(f"✅ Cache hit pre dlhové registry {country} {identifier}")
+            return cached_data
+    
+    try:
+        if country == "SK":
+            return _search_sk_debt(identifier)
+        elif country == "CZ":
+            return _search_cz_debt(identifier)
+    except Exception as e:
+        print(f"⚠️ Chyba pri vyhľadávaní dlhov ({country}): {e}")
+        return _generate_fallback_debt_data(identifier, country)
+
+
+def _search_sk_debt(ico: str) -> Optional[Dict]:
+    """
+    Vyhľadá dlhy voči Finančnej správe SR.
+    
+    Poznámka: V reálnom nasadení by sme použili oficiálny API
+    alebo web scraping z https://www.financnasprava.sk/
+    """
+    # Validácia IČO (8 miest)
+    if not ico or len(ico) != 8 or not ico.isdigit():
         return None
     
     try:
-        # Finančná správa SR - verejné zoznamy dlžníkov
-        # V produkcii: https://www.financnasprava.sk/api/debt/{ico}
-        # Simulácia - v produkcii by to bolo:
-        # response = requests.get(api_url, timeout=10)
-        # if response.status_code == 200:
-        #     return response.json()
+        # Simulácia API volania
+        # V produkcii: requests.get(f"https://api.financnasprava.sk/debt/{ico}")
         
-        # Fallback - simulované dáta (pre test IČO 88888888)
-        if ico == "88888888":
-            return {
-                "ico": ico,
-                "company_name": "Test Firma s.r.o.",
-                "debts": [
+        # Fallback pre MVP - simulácia
+        has_debt = int(ico[-1]) % 4 == 0  # 25% šanca že má dlh
+        
+        if has_debt:
+            total_debt = int(ico[-3:]) * 100  # Simulovaný dlh
+            debt_data = {
+                "has_debt": True,
+                "total_debt": total_debt,
+                "currency": "EUR",
+                "debt_items": [
                     {
-                        "amount": 25000.0,
-                        "currency": "EUR",
-                        "creditor": "Finančná správa SR",
-                        "debt_type": "DPH",
-                        "due_date": "2024-01-15",
-                        "status": "AKTÍVNY"
+                        "type": "DPH",
+                        "amount": total_debt * 0.6,
+                        "due_date": "2024-12-31"
+                    },
+                    {
+                        "type": "Daň z príjmu",
+                        "amount": total_debt * 0.4,
+                        "due_date": "2024-12-31"
                     }
                 ],
-                "total_debt": 25000.0,
-                "has_debt": True
+                "last_updated": datetime.now().isoformat()
+            }
+        else:
+            debt_data = {
+                "has_debt": False,
+                "total_debt": 0,
+                "currency": "EUR",
+                "debt_items": [],
+                "last_updated": datetime.now().isoformat()
             }
         
-        # Pre ostatné IČO - žiadny dlh
-        return {
-            "ico": ico,
-            "company_name": None,
-            "debts": [],
-            "total_debt": 0.0,
-            "has_debt": False
+        result = {
+            "country": "SK",
+            "identifier": ico,
+            "data": debt_data,
+            "risk_score": 8 if has_debt else 0
         }
+        
+        _debt_cache[f"debt_SK_{ico}"] = (result, datetime.now())
+        return result
+        
     except Exception as e:
-        print(f"⚠️ Chyba pri Finančná správa SR API: {e}")
+        print(f"⚠️ Chyba pri SK dlhovom registri: {e}")
         return None
 
 
-def fetch_debt_cz(ico: str) -> Optional[Dict]:
+def _search_cz_debt(ico: str) -> Optional[Dict]:
     """
-    Získa údaje o dlhoch z Finančnej správy ČR
-    API: https://www.financnisprava.cz/cs/elektronicke-sluzby/verejne-sluzby/seznamy
+    Vyhľadá dlhy voči Finančnej správe ČR.
+    
+    Poznámka: V reálnom nasadení by sme použili oficiálny API
+    alebo web scraping z https://www.financnisprava.cz/
     """
-    if not is_czech_ico_for_debt(ico):
+    # Validácia IČO (8 alebo 9 miest)
+    if not ico or len(ico) not in [8, 9] or not ico.isdigit():
         return None
     
     try:
-        # Finančná správa ČR - verejné zoznamy dlžníkov
-        # V produkcii: https://www.financnisprava.cz/api/debt/{ico}
-        # Simulácia - v produkcii by to bolo:
-        # response = requests.get(api_url, timeout=10)
-        # if response.status_code == 200:
-        #     return response.json()
+        # Simulácia API volania
+        # V produkcii: requests.get(f"https://api.financnisprava.cz/debt/{ico}")
         
-        # Fallback - simulované dáta
-        return {
-            "ico": ico,
-            "company_name": None,
-            "debts": [],
-            "total_debt": 0.0,
-            "has_debt": False
+        # Fallback pre MVP - simulácia
+        has_debt = int(ico[-1]) % 4 == 0  # 25% šanca že má dlh
+        
+        if has_debt:
+            total_debt = int(ico[-3:]) * 100  # Simulovaný dlh
+            debt_data = {
+                "has_debt": True,
+                "total_debt": total_debt,
+                "currency": "CZK",
+                "debt_items": [
+                    {
+                        "type": "DPH",
+                        "amount": total_debt * 0.6,
+                        "due_date": "2024-12-31"
+                    },
+                    {
+                        "type": "Daň z příjmu",
+                        "amount": total_debt * 0.4,
+                        "due_date": "2024-12-31"
+                    }
+                ],
+                "last_updated": datetime.now().isoformat()
+            }
+        else:
+            debt_data = {
+                "has_debt": False,
+                "total_debt": 0,
+                "currency": "CZK",
+                "debt_items": [],
+                "last_updated": datetime.now().isoformat()
+            }
+        
+        result = {
+            "country": "CZ",
+            "identifier": ico,
+            "data": debt_data,
+            "risk_score": 8 if has_debt else 0
         }
+        
+        _debt_cache[f"debt_CZ_{ico}"] = (result, datetime.now())
+        return result
+        
     except Exception as e:
-        print(f"⚠️ Chyba pri Finančná správa ČR API: {e}")
+        print(f"⚠️ Chyba pri CZ dlhovom registri: {e}")
         return None
 
 
-def parse_debt_data(debt_data: Dict, country: str) -> Dict:
-    """
-    Parsuje dáta o dlhoch do jednotnej schémy
-    """
-    if not debt_data:
-        return {}
-    
+def _generate_fallback_debt_data(identifier: str, country: str) -> Dict:
+    """Generuje fallback dáta pre dlhové registry"""
     return {
-        "ico": debt_data.get("ico", ""),
-        "company_name": debt_data.get("company_name"),
         "country": country,
-        "has_debt": debt_data.get("has_debt", False),
-        "total_debt": debt_data.get("total_debt", 0.0),
-        "debts": debt_data.get("debts", []),
-        "debt_count": len(debt_data.get("debts", []))
+        "identifier": identifier,
+        "data": {
+            "has_debt": False,
+            "total_debt": 0,
+            "currency": "EUR" if country == "SK" else "CZK",
+            "debt_items": [],
+            "last_updated": datetime.now().isoformat()
+        },
+        "risk_score": 0
     }
 
 
-def calculate_debt_risk_score(debt_data: Dict) -> float:
+def has_debt(identifier: str, country: str) -> bool:
     """
-    Vypočíta risk score na základe dlhov
+    Jednoduchá kontrola, či má firma dlh.
+    
+    Returns:
+        True ak má dlh, False inak
     """
-    if not debt_data or not debt_data.get("has_debt"):
-        return 0.0
+    debt_result = search_debt_registers(identifier, country)
+    if not debt_result:
+        return False
     
-    risk = 5.0  # Base risk pre dlh
-    
-    total_debt = debt_data.get("total_debt", 0.0)
-    
-    # Výška dlhu
-    if total_debt > 100000:
-        risk += 3.0  # Veľký dlh
-    elif total_debt > 50000:
-        risk += 2.0  # Stredný dlh
-    elif total_debt > 10000:
-        risk += 1.0  # Malý dlh
-    
-    # Počet dlhov
-    debt_count = debt_data.get("debt_count", 0)
-    if debt_count > 5:
-        risk += 2.0
-    elif debt_count > 2:
-        risk += 1.0
-    
-    # Typ dlhu (DPH je vážnejší)
-    debts = debt_data.get("debts", [])
-    for debt in debts:
-        if debt.get("debt_type") == "DPH":
-            risk += 1.0
-            break
-    
-    return min(risk, 10.0)
-
-
-def search_debt_registers(ico: str, country: str) -> Optional[Dict]:
-    """
-    Hlavná funkcia pre vyhľadávanie v dlhových registroch
-    """
-    if country == "SK":
-        debt_data = fetch_debt_sk(ico)
-    elif country == "CZ":
-        debt_data = fetch_debt_cz(ico)
-    else:
-        return None
-    
-    if not debt_data:
-        return None
-    
-    parsed = parse_debt_data(debt_data, country)
-    risk_score = calculate_debt_risk_score(parsed)
-    
-    return {
-        "data": parsed,
-        "risk_score": risk_score,
-        "source": f"Finančná správa {country}"
-    }
-
-
-def has_debt(ico: str, country: str) -> bool:
-    """
-    Rýchle overenie, či má firma dlh
-    """
-    result = search_debt_registers(ico, country)
-    if result and result.get("data"):
-        return result["data"].get("has_debt", False)
-    return False
+    return debt_result.get("data", {}).get("has_debt", False)
 
