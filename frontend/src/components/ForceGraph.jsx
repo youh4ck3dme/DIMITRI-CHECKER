@@ -324,5 +324,13 @@ const ForceGraph = ({ data }) => {
   );
 };
 
-export default ForceGraph;
+// Memoize component pre performance
+export default memo(ForceGraph, (prevProps, nextProps) => {
+  // Custom comparison - re-render len ak sa zmenili dáta
+  return (
+    prevProps.data === nextProps.data &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height
+  );
+});
 

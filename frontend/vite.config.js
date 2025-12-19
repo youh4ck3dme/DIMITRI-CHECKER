@@ -79,7 +79,20 @@ export default defineConfig({
     })
   ],
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom']
+    include: ['react', 'react-dom', 'react-router-dom'],
+    exclude: ['react-force-graph-2d']
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'graph-vendor': ['react-force-graph-2d', 'd3-force'],
+          'utils': ['lucide-react']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
   },
   server: {
     hmr: {

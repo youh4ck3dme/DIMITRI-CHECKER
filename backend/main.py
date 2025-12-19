@@ -25,6 +25,7 @@ from services.database import (
 from services.error_handler import error_handler, log_error, safe_api_call
 from services.circuit_breaker import get_all_breakers, reset_breaker
 from services.metrics import get_metrics, increment, timer, TimerContext, record_event, gauge
+from services.performance import timing_decorator, get_connection_pool
 
 app = FastAPI(
     title="ILUMINATI SYSTEM API",
