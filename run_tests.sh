@@ -46,6 +46,13 @@ python3 tests/test_proxy_rotation.py
 PROXY_RESULT=$?
 echo ""
 
+# 1.8. API endpoints testy
+echo -e "${YELLOW}1.8. API ENDPOINTS TESTS${NC}"
+echo "─────────────────────────────────────"
+python3 tests/test_api_endpoints.py
+API_ENDPOINTS_RESULT=$?
+echo ""
+
 # 2. Frontend testy
 echo -e "${YELLOW}2. FRONTEND TESTS${NC}"
 echo "─────────────────────────────────────"
@@ -67,7 +74,7 @@ echo "📊 FINÁLNY SÚHRN"
 echo "═══════════════════════════════════════"
 echo ""
 
-TOTAL_TESTS=6
+TOTAL_TESTS=7
 PASSED=0
 
 if [ $BACKEND_RESULT -eq 0 ]; then
@@ -96,6 +103,13 @@ if [ $PROXY_RESULT -eq 0 ]; then
     PASSED=$((PASSED + 1))
 else
     echo -e "${RED}❌ Proxy rotation tests: FAILED${NC}"
+fi
+
+if [ $API_ENDPOINTS_RESULT -eq 0 ]; then
+    echo -e "${GREEN}✅ API endpoints tests: PASSED${NC}"
+    PASSED=$((PASSED + 1))
+else
+    echo -e "${RED}❌ API endpoints tests: FAILED${NC}"
 fi
 
 if [ $FRONTEND_RESULT -eq 0 ]; then

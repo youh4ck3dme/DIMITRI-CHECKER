@@ -31,10 +31,9 @@ def test_health_endpoint():
         response = requests.get(f"{BASE_URL}/api/health", timeout=5)
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         data = response.json()
-        # Health endpoint môže vrátiť "ok" alebo iný formát
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        # Health endpoint môže vrátiť "ok", "healthy" alebo iný formát
         assert "status" in data or "features" in data, "Should have status or features"
-        print("   ✅ Health endpoint OK")
+        print(f"   ✅ Health endpoint OK (status: {data.get('status', 'N/A')})")
         return True
     except Exception as e:
         print(f"   ❌ Health endpoint failed: {e}")
