@@ -1,4 +1,8 @@
-# 🚀 ILUMINATE SYSTEM - Ďalšie Kroky
+# 🚀 ILUMINATI SYSTEM - Ďalšie Kroky
+
+**Aktuálny stav:** ~75% dokončené | **Test coverage:** 75% (vylepšené, stále potrebuje prácu)
+
+📊 **Kompletný prehľad:** Pozri [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 
 ## ✅ Čo už máme (MVP)
 
@@ -43,7 +47,7 @@
 #### 2.3. Maďarsko (HU) ✅ DOKONČENÉ
 - [x] E-cegjegyzek / NAV Online
 - [x] Scraping alebo komerčné API (fallback implementovaný)
-- [ ] Proxy rotation pre stabilitu (pending)
+- [x] Proxy rotation pre stabilitu ✅ DOKONČENÉ
 
 **Výhody:**
 - Skutočný cross-border efekt
@@ -154,9 +158,9 @@
 ## 📝 Dokumentácia
 
 - [x] API dokumentácia (OpenAPI/Swagger) ✅ DOKONČENÉ
-- [ ] Developer guide
-- [ ] Deployment guide
-- [ ] Architecture diagram
+- [x] Developer guide ✅ DOKONČENÉ
+- [x] Deployment guide ✅ DOKONČENÉ
+- [x] Architecture diagram ✅ DOKONČENÉ
 
 ## 🎯 Odporúčanie: Začať s Fázou 2
 

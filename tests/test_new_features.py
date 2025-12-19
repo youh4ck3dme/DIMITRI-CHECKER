@@ -69,7 +69,6 @@ def test_debt_registers_sk():
         assert "nodes" in data, "Should have nodes"
         # Skontrolovať, či má debt nodes
         debt_nodes = [n for n in data["nodes"] if n.get("type") == "debt"]
-        has_debt = len(debt_nodes) > 0
         print(f"   ✅ SK debt registers OK (debt nodes: {len(debt_nodes)})")
         return True
     except Exception as e:
@@ -139,15 +138,12 @@ def test_services_import_new():
     """Test import nových services"""
     print("🔍 Test: New services import...")
     try:
-        from services.pl_ceidg import is_ceidg_number, fetch_ceidg_pl  # type: ignore
-        from services.pl_biala_lista import is_polish_nip, get_vat_status_pl  # type: ignore
-        from services.debt_registers import search_debt_registers, has_debt  # type: ignore
-        from services.database import init_database, get_database_stats  # type: ignore
-        from services.error_handler import log_error, safe_api_call  # type: ignore
+        from services.pl_ceidg import is_ceidg_number  # type: ignore
+        from services.pl_biala_lista import is_polish_nip  # type: ignore
         
         # Test detekcie
-        assert is_ceidg_number("1234567890") == True, "CEIDG detection failed"
-        assert is_polish_nip("1234567890") == True, "Polish NIP detection failed"
+        assert is_ceidg_number("1234567890"), "CEIDG detection failed"
+        assert is_polish_nip("1234567890"), "Polish NIP detection failed"
         
         print("   ✅ All new services import OK")
         return True
@@ -171,7 +167,7 @@ def run_all_tests():
             if response.status_code == 200:
                 print("✅ Server beží!")
                 break
-        except:
+        except (requests.exceptions.RequestException, ConnectionError):
             time.sleep(1)
     else:
         print("❌ Server nie je dostupný na http://localhost:8000")

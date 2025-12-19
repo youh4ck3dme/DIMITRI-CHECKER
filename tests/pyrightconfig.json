@@ -1,5 +1,6 @@
 {
   "include": [
+    ".",
     "../backend"
   ],
   "exclude": [
@@ -9,21 +10,20 @@
   ],
   "executionEnvironments": [
     {
-      "root": "../backend",
+      "root": ".",
       "pythonVersion": "3.14",
       "pythonPlatform": "Darwin",
       "extraPaths": [
         "../backend",
-        "../backend/venv/lib/python3.14/site-packages"
+        "../.venv/lib/python3.14/site-packages"
       ]
     }
   ],
-  "venvPath": "../backend",
-  "venv": "venv",
+  "venvPath": "..",
+  "venv": ".venv",
   "pythonVersion": "3.14",
   "typeCheckingMode": "basic",
   "reportMissingImports": "none",
   "reportMissingModuleSource": "none",
   "reportMissingTypeStubs": "none"
 }
-

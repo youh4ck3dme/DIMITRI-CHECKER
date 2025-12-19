@@ -4,7 +4,7 @@ API dokumentácia: https://api-krs.ms.gov.pl/api/krs
 """
 
 import requests
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from datetime import datetime, timedelta
 import re
 
@@ -106,7 +106,7 @@ def parse_krs_data(krs_data: Dict, krs_number: str) -> Dict:
         "krs": krs_data.get("krs", krs_number),
         "name": krs_data.get("name") or krs_data.get("nazwa", "Nieznana firma"),
         "legal_form": krs_data.get("legal_form") or krs_data.get("formaPrawna", "Sp. z o.o."),
-        "status": krs_data.get("status") or krs_data.get("status", "Aktywna"),
+        "status": krs_data.get("status") or "Aktywna",
         "country": "PL",
         "address": _parse_address(krs_data.get("address", {})),
         "founded": krs_data.get("founded") or krs_data.get("dataPowstania"),
@@ -166,7 +166,7 @@ def calculate_pl_risk_score(company_data: Dict) -> int:
             age_years = (datetime.now() - founded_date).days / 365
             if age_years < 1:
                 score += 2
-        except:
+        except (ValueError, TypeError):
             pass
     
     return min(score, 10)
@@ -183,4 +183,3 @@ def get_cache_stats() -> Dict:
         "cached_items": len(_krs_cache),
         "cache_ttl_hours": _cache_ttl.total_seconds() / 3600
     }
-

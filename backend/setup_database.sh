@@ -51,7 +51,9 @@ echo ""
 # 3. Inštalácia Python dependencies
 echo -e "${YELLOW}3. Inštalácia Python dependencies...${NC}"
 cd "$(dirname "$0")"
-source venv/bin/activate 2>/dev/null || echo "⚠️  venv nie je aktivovaný"
+
+# Prefer project venv at repo root (../.venv)
+source ../.venv/bin/activate 2>/dev/null || echo "⚠️  .venv nie je aktivovaný"
 
 pip install psycopg2-binary sqlalchemy alembic --quiet && \
     echo -e "${GREEN}✅ Dependencies nainštalované${NC}" || \
@@ -84,4 +86,3 @@ echo ""
 echo "🔧 Pre manuálnu kontrolu:"
 echo "   psql -U $DB_USER -d iluminati_db"
 echo ""
-

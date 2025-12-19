@@ -139,7 +139,7 @@ def calculate_ceidg_risk_score(company_data: Dict) -> int:
                 score += 3
             elif age_years < 2:
                 score += 1
-        except:
+        except (ValueError, TypeError):
             pass
     
     # Počet aktivít (viac aktivít = menej špecializovaný)

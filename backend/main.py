@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends, status, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional, Dict
 import requests
 import random
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Import nových služieb
 from services.sk_rpo import fetch_rpo_sk, parse_rpo_data, calculate_sk_risk_score, is_slovak_ico
@@ -26,6 +27,17 @@ from services.error_handler import error_handler, log_error, safe_api_call
 from services.circuit_breaker import get_all_breakers, reset_breaker
 from services.metrics import get_metrics, increment, timer, TimerContext, record_event, gauge
 from services.performance import timing_decorator, get_connection_pool
+from services.proxy_rotation import get_proxy_stats, init_proxy_pool
+from services.stripe_service import (
+    create_checkout_session, handle_webhook, get_subscription_status,
+    cancel_subscription
+)
+from services.auth import (
+    User, UserTier, create_user, authenticate_user, get_user_by_email,
+    create_access_token, decode_access_token, get_user_tier_limits,
+    get_password_hash, verify_password, update_user_tier
+)
+from services.database import get_db_session, init_database
 
 app = FastAPI(
     title="ILUMINATI SYSTEM API",
@@ -46,6 +58,8 @@ async def startup_event():
     init_database()
     # Cleanup expirovaného cache pri štarte
     cleanup_expired_cache()
+    # Inicializovať proxy pool (ak sú proxy v env)
+    init_proxy_pool()
 
 # --- KONFIGURÁCIA CORS (Prepojenie s Frontendom) ---
 origins = [
@@ -80,6 +94,32 @@ class Edge(BaseModel):
 class GraphResponse(BaseModel):
     nodes: List[Node]
     edges: List[Edge]
+
+# Auth Models
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: Dict
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    full_name: Optional[str]
+    tier: str
+    is_active: bool
+    is_verified: bool
+
+# OAuth2
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # --- SLUŽBY (ARES INTEGRÁCIA) ---
 def fetch_ares_cz(query: str):
@@ -156,6 +196,218 @@ async def reset_circuit_breaker(name: str):
 async def metrics():
     """Vráti metríky"""
     return get_metrics().get_metrics()
+
+@app.get("/api/proxy/stats")
+async def proxy_stats():
+    """Vráti štatistiky proxy poolu"""
+    return get_proxy_stats()
+
+# --- AUTH ENDPOINTY ---
+
+def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    """Získa aktuálneho používateľa z tokenu"""
+    payload = decode_access_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    email: str = payload.get("sub")
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    with get_db_session() as db:
+        if db is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        user = get_user_by_email(db, email)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return user
+
+@app.post("/api/auth/register", response_model=UserResponse)
+async def register(user_data: UserRegister):
+    """Registrácia nového používateľa"""
+    with get_db_session() as db:
+        if db is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        
+        # Skontrolovať, či už existuje
+        existing_user = get_user_by_email(db, user_data.email)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Vytvoriť používateľa
+        user = create_user(
+            db=db,
+            email=user_data.email,
+            password=user_data.password,
+            full_name=user_data.full_name
+        )
+        
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            tier=user.tier.value,
+            is_active=user.is_active,
+            is_verified=user.is_verified
+        )
+
+@app.post("/api/auth/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login používateľa"""
+    with get_db_session() as db:
+        if db is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        
+        user = authenticate_user(db, form_data.username, form_data.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Vytvoriť access token
+        access_token_expires = timedelta(minutes=30 * 24 * 60)  # 30 dní
+        access_token = create_access_token(
+            data={"sub": user.email, "tier": user.tier.value},
+            expires_delta=access_token_expires
+        )
+        
+        # Aktualizovať last_login
+        user.last_login = datetime.utcnow()
+        db.commit()
+        
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            user={
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "tier": user.tier.value,
+                "limits": get_user_tier_limits(user.tier)
+            }
+        )
+
+@app.get("/api/auth/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Získa informácie o aktuálnom používateľovi"""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        tier=current_user.tier.value,
+        is_active=current_user.is_active,
+        is_verified=current_user.is_verified
+    )
+
+@app.get("/api/auth/tier/limits")
+async def get_tier_limits(current_user: User = Depends(get_current_user)):
+    """Získa limity pre tier aktuálneho používateľa"""
+    return get_user_tier_limits(current_user.tier)
+
+# --- STRIPE ENDPOINTY ---
+
+@app.post("/api/payment/checkout")
+async def create_payment_checkout(
+    tier: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Vytvorí Stripe checkout session pre upgrade tieru"""
+    try:
+        user_tier = UserTier(tier.lower())
+        if user_tier == UserTier.FREE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot upgrade to FREE tier"
+            )
+        
+        result = create_checkout_session(
+            user_id=current_user.id,
+            user_email=current_user.email,
+            tier=user_tier
+        )
+        
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result["error"]
+            )
+        
+        return result
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid tier: {tier}"
+        )
+
+@app.post("/api/payment/webhook")
+async def stripe_webhook(request: FastAPIRequest):
+    """Stripe webhook endpoint pre subscription events"""
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+    
+    if not signature:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing stripe-signature header"
+        )
+    
+    result = handle_webhook(payload, signature)
+    
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"]
+        )
+    
+    return result
+
+@app.get("/api/payment/subscription")
+async def get_subscription(current_user: User = Depends(get_current_user)):
+    """Získa subscription status používateľa"""
+    result = get_subscription_status(current_user.email)
+    
+    if result is None:
+        return {"status": "no_subscription", "tier": current_user.tier.value}
+    
+    return result
+
+@app.post("/api/payment/cancel")
+async def cancel_user_subscription(current_user: User = Depends(get_current_user)):
+    """Zruší subscription používateľa"""
+    result = cancel_subscription(current_user.email)
+    
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"]
+        )
+    
+    return result
 
 @app.get("/api/health")
 def health_check():

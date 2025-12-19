@@ -30,6 +30,29 @@ def test_timing_decorator():
     assert result == 10, "Timing decorator should not modify function result"
 
 
+def test_timing_decorator_async():
+    """Test timing decorator on async functions (should preserve results/exceptions)."""
+    @timing_decorator
+    async def async_func(x):
+        await asyncio.sleep(0.01)
+        return x + 1
+
+    @timing_decorator
+    async def async_fail():
+        await asyncio.sleep(0.01)
+        raise ValueError("boom")
+
+    async def run_test():
+        assert await async_func(1) == 2
+        try:
+            await async_fail()
+            assert False, "Expected ValueError from decorated async function"
+        except ValueError as e:
+            assert str(e) == "boom"
+
+    asyncio.run(run_test())
+
+
 def test_cache_result():
     """Test cache decorator"""
     call_count = [0]
@@ -53,6 +76,29 @@ def test_cache_result():
     result3 = expensive_function(10)
     assert result3 == 20, "Different args should compute new result"
     assert call_count[0] == 2, "Function should be called for different args"
+
+
+def test_cache_result_ttl_expiration_and_clear_cache():
+    """Cache should recompute after TTL expiration; clear_cache should reset state."""
+    call_count = [0]
+
+    @cache_result(ttl=0.05)
+    def f(x):
+        call_count[0] += 1
+        return x * 3
+
+    assert f(2) == 6
+    assert f(2) == 6
+    assert call_count[0] == 1, "Should be cached within TTL"
+
+    time.sleep(0.06)
+    assert f(2) == 6
+    assert call_count[0] == 2, "Should recompute after TTL expiration"
+
+    # clear_cache should force recompute even within TTL
+    f.clear_cache()
+    assert f(2) == 6
+    assert call_count[0] == 3
 
 
 def test_cache_cleanup():
@@ -133,6 +179,82 @@ def test_batch_requests():
     asyncio.run(run_test())
 
 
+def test_batch_requests_limits_concurrency_and_respects_delay():
+    """batch_requests should process at most batch_size concurrently and delay between batches."""
+    batch_size = 2
+    delay = 0.15
+
+    active = 0
+    max_active = 0
+    start_times = {}
+    end_times = {}
+
+    @batch_requests(batch_size=batch_size, delay=delay)
+    async def work(x):
+        nonlocal active, max_active
+        start_times[x] = time.monotonic()
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.05)
+        active -= 1
+        end_times[x] = time.monotonic()
+        return x
+
+    async def run_test():
+        tasks = [asyncio.create_task(work(i)) for i in range(5)]
+        results = await asyncio.gather(*tasks)
+        assert results == [0, 1, 2, 3, 4]
+
+        # "Batches" are sequential in this decorator; ensure we never exceed batch_size.
+        assert max_active <= batch_size, f"max_active={max_active} exceeded batch_size={batch_size}"
+
+        # Timing check (non-flaky): item 2 should not start until after batch 0-1 completes + delay.
+        batch1_end = max(end_times[0], end_times[1])
+        assert start_times[2] >= batch1_end + delay - 0.06, (
+            f"Expected delay between batches. start_times[2]={start_times[2]:.3f}, "
+            f"batch1_end={batch1_end:.3f}, delay={delay}"
+        )
+
+        # Same for item 4 (third batch) relative to completion of items 2-3.
+        batch2_end = max(end_times[2], end_times[3])
+        assert start_times[4] >= batch2_end + delay - 0.06, (
+            f"Expected delay between batches. start_times[4]={start_times[4]:.3f}, "
+            f"batch2_end={batch2_end:.3f}, delay={delay}"
+        )
+
+    asyncio.run(run_test())
+
+
+def test_batch_requests_propagates_exceptions_per_call():
+    """If one call raises, only that call should fail; others should still resolve."""
+    @batch_requests(batch_size=3, delay=0.01)
+    async def maybe_fail(x):
+        await asyncio.sleep(0.01)
+        if x in (2, 5):
+            raise ValueError(f"bad:{x}")
+        return x * 10
+
+    async def run_test():
+        tasks = [asyncio.create_task(maybe_fail(i)) for i in range(6)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        assert results[0] == 0
+        assert results[1] == 10
+        assert isinstance(results[2], ValueError) and str(results[2]) == "bad:2"
+        assert results[3] == 30
+        assert results[4] == 40
+        assert isinstance(results[5], ValueError) and str(results[5]) == "bad:5"
+
+        # Validate that awaiting the failing call raises (not returned as a value).
+        try:
+            await maybe_fail(2)
+            assert False, "Expected ValueError to be raised for x=2"
+        except ValueError as e:
+            assert str(e) == "bad:2"
+
+    asyncio.run(run_test())
+
+
 def test_performance_improvement():
     """Test, že cache skutočne zlepšuje výkon"""
     call_count = [0]
@@ -191,4 +313,3 @@ if __name__ == "__main__":
     
     if failed > 0:
         sys.exit(1)
-

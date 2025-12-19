@@ -16,7 +16,14 @@ sleep 2
 # Spustiť backend
 echo "🔧 Spúšťam backend server (port 8000)..."
 cd backend
-source venv/bin/activate
+
+# Prefer project venv at repo root (./.venv). Fall back to system python if missing.
+if [ -f "../.venv/bin/activate" ]; then
+  source "../.venv/bin/activate"
+else
+  echo "⚠️  ../.venv/bin/activate not found; using system python"
+fi
+
 python main.py &
 BACKEND_PID=$!
 cd ..
@@ -42,4 +49,3 @@ echo ""
 
 # Počakať na ukončenie
 wait
-

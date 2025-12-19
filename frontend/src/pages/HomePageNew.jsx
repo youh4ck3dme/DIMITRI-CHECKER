@@ -87,7 +87,7 @@ export default function HomePageNew() {
 
     try {
       const response = await fetch(`http://localhost:8000/api/search?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error('Chyba pri komunikácii so serverom');
+      if (!response.ok) throw new Error(`Chyba pri komunikácii so serverom: ${response.status} ${response.statusText}`);
       
       const result = await response.json();
       if (result.nodes.length === 0) {

@@ -4,10 +4,8 @@ API dokumentácia: https://ekosystem.slovensko.digital/api-docs
 """
 
 import requests
-from typing import Dict, List, Optional
-import xml.etree.ElementTree as ET
+from typing import Dict, Optional
 from datetime import datetime, timedelta
-from services.circuit_breaker import get_circuit_breaker, CircuitBreakerOpenError
 
 # Cache pre RPO odpovede (in-memory, neskôr Redis)
 _rpo_cache = {}
@@ -177,7 +175,7 @@ def calculate_sk_risk_score(company_data: Dict) -> int:
             age_years = (datetime.now() - founded_date).days / 365
             if age_years < 1:  # Menej ako rok
                 score += 2
-        except:
+        except (ValueError, TypeError):
             pass
     
     return min(score, 10)  # Max 10

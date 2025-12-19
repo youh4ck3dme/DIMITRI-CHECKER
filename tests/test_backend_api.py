@@ -31,10 +31,9 @@ def test_health_endpoint():
         response = requests.get(f"{BASE_URL}/api/health", timeout=5)
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         data = response.json()
-        # Health endpoint môže vrátiť "ok" alebo iný formát
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        # Health endpoint môže vrátiť "ok", "healthy" alebo iný formát
         assert "status" in data or "features" in data, "Should have status or features"
-        print("   ✅ Health endpoint OK")
+        print(f"   ✅ Health endpoint OK (status: {data.get('status', 'N/A')})")
         return True
     except Exception as e:
         print(f"   ❌ Health endpoint failed: {e}")
@@ -169,9 +168,9 @@ def test_services_import():
         from services.risk_intelligence import generate_risk_report
         
         # Test detekcie
-        assert is_slovak_ico("88888888") == True, "SK IČO detection failed"
-        assert is_polish_krs("123456789") == True, "PL KRS detection failed"
-        assert is_hungarian_tax_number("12345678") == True, "HU adószám detection failed"
+        assert is_slovak_ico("88888888"), "SK IČO detection failed"
+        assert is_polish_krs("123456789"), "PL KRS detection failed"
+        assert is_hungarian_tax_number("12345678"), "HU adószám detection failed"
         
         print("   ✅ All services import OK")
         return True
@@ -195,7 +194,7 @@ def run_all_tests():
             if response.status_code == 200:
                 print("✅ Server beží!")
                 break
-        except:
+        except (requests.exceptions.RequestException, ConnectionError):
             time.sleep(1)
     else:
         print("❌ Server nie je dostupný na http://localhost:8000")
