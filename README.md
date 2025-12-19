@@ -1,0 +1,186 @@
+# 📘 ILUMINATE SYSTEM - MVP
+
+**Verzia:** 1.1 (Detailed Architecture Phase)  
+**Status:** Vo vývoji (Proof of Concept & Architecture Definition)
+
+## Vízia Produktu
+
+Cieľ: Poskytnúť malým a stredným podnikom (SME) v regióne V4 nástroj podnikovej rozviedky (Business Intelligence), ktorý bol doteraz dostupný len bankám a veľkým korporáciám.
+
+**USP:** Agregácia dát zo 4 krajín do jedného grafu v reálnom čase. Na rozdiel od konkurencie, ktorá často ponúka len statické výpisy, ILUMINATE SYSTEM odhaľuje skryté vzťahy naprieč hranicami na jedno kliknutie.
+
+## Technická Architektúra
+
+### Frontend
+- **Technológia:** React 18 (Vite) + Tailwind CSS
+- **Vizualizácia:** SVG implementácia pre MVP (neskôr react-force-graph alebo D3.js)
+
+### Backend
+- **Technológia:** Python 3.10+ s FastAPI
+- **Integrácia:** ARES (CZ) - primárny zdroj pre MVP
+- **Architektúra:** Modulárny monolit pripravený na mikroservisy
+
+## Inštalácia a Spustenie
+
+### Predpoklady
+- Python 3.10+ s pip
+- Node.js 18+ s npm
+- Git
+
+### Krok 1: Backend Setup
+
+```bash
+cd backend
+
+# Vytvorenie izolovaného prostredia
+python -m venv venv
+
+# Aktivácia prostredia
+# Mac/Linux:
+source venv/bin/activate
+# Windows:
+# venv\Scripts\activate
+
+# Inštalácia závislostí
+pip install -r requirements.txt
+
+# Spustenie vývojového servera
+python main.py
+```
+
+Backend bude dostupný na `http://localhost:8000`.  
+API dokumentácia: `http://localhost:8000/docs`
+
+### Krok 2: Frontend Setup
+
+```bash
+cd frontend
+
+# Inštalácia balíčkov
+npm install
+
+# Spustenie vývojového servera
+npm run dev
+```
+
+Frontend bude dostupný na `http://localhost:5173`
+
+### Krok 3: Testovanie
+
+1. Otvorte prehliadač na `http://localhost:5173`
+2. Do vyhľadávacieho poľa zadajte názov firmy (napr. "Agrofert")
+3. Skontrolujte konzolu prehliadača (F12) a terminál backendu, či prebehla komunikácia
+
+## Štruktúra Projektu
+
+```
+DIMITRI-CHECKER/
+├── backend/
+│   ├── main.py            # ILUMINATE SYSTEM Engine (FastAPI)
+│   ├── requirements.txt   # Python závislosti
+│   ├── pyrightconfig.json # Python linter konfigurácia
+│   └── venv/             # Python virtual environment
+├── frontend/
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   ├── package.json
+│   ├── dist/             # Production build
+│   ├── node_modules/     # Node.js závislosti
+│   └── src/
+│       ├── main.jsx
+│       ├── index.css
+│       ├── App.jsx        # Router a hlavná aplikácia
+│       ├── components/
+│       │   ├── Footer.jsx      # Footer s linkmi na právne dokumenty
+│       │   ├── Layout.jsx      # Layout wrapper s footerom
+│       │   └── Disclaimer.jsx  # Disclaimer komponenta
+│       └── pages/
+│           ├── HomePage.jsx              # Hlavná stránka s vyhľadávaním
+│           ├── TermsOfService.jsx        # VOP
+│           ├── PrivacyPolicy.jsx        # GDPR zásady
+│           ├── Disclaimer.jsx           # Vyhlásenie o zodpovednosti
+│           ├── CookiePolicy.jsx         # Cookie Policy
+│           └── DataProcessingAgreement.jsx  # DPA pre B2B
+├── docs/                 # Dokumentácia
+│   ├── README.md
+│   ├── DESIGN_UPGRADE_PROMPT.md
+│   ├── SERVER_STATUS.md
+│   ├── TEST_ICO_GUIDE.md
+│   └── TEST_REPORT.md
+├── logs/                 # Log súbory
+├── .vscode/              # VS Code konfigurácia
+├── test_basic.py         # Základné testy
+├── .gitignore
+└── README.md
+```
+
+## Funkcionalita MVP
+
+✅ **Implementované:**
+- Frontend: Funkčný React UI s vyhľadávacím poľom a základným zobrazením výsledkov
+- Backend: FastAPI server bežiaci lokálne
+- Integrácia: Konektor pre český register ARES
+- Vizualizácia: SVG graf s uzlami (firmy, osoby, adresy) a hranami (vzťahy)
+- CORS: Zabezpečená komunikácia Frontend <-> Backend
+- **Routing:** React Router pre navigáciu medzi stránkami
+- **Právne dokumenty:** Kompletné stránky pre VOP, Privacy Policy, Disclaimer, Cookie Policy, DPA
+- **Footer:** Footer s linkmi na všetky právne dokumenty dostupný na každej stránke
+- **Disclaimer:** Automatické zobrazenie disclaimeru pod každým grafom
+
+## Roadmapa
+
+### Fáza 1: MVP ✅ (Súčasný stav)
+- [x] Frontend: Funkčný React UI
+- [x] Backend: FastAPI server
+- [x] Integrácia: ARES (CZ)
+- [x] Lokálne prepojenie: CORS, porty
+- [x] Právne dokumenty: VOP, Privacy Policy, Disclaimer, Cookie Policy, DPA
+- [x] Footer s linkmi na dokumenty
+- [x] Disclaimer pod grafom
+
+### Fáza 2: Persistence & Graph (Mesiace 1-2)
+- [ ] Databáza: PostgreSQL/Neo4j
+- [ ] SK Integrácia: RPO cez Ekosystém Slovensko.Digital
+- [ ] Vizualizácia: react-force-graph-2d
+
+### Fáza 3: Risk Intelligence (Mesiace 3-4)
+- [ ] Dlhové registre: Finančná správa SK/CZ
+- [ ] Fraud Detection: White Horse Detector
+- [ ] Reporting: PDF reporty
+
+### Fáza 4: Monetizácia a Škálovanie (Mesiace 5+)
+- [ ] Platby: Stripe integrácia
+- [ ] Auth: Používateľské účty
+- [ ] Enterprise API: ERP integrácie
+
+## Bezpečnosť
+
+- **Rate Limiting:** Implementácia Token Bucket algoritmu (plánované)
+- **GDPR:** Spracovávame výhradne verejne dostupné dáta
+- **Proxy Rotation:** Pre registre bez oficiálneho API (plánované)
+
+## Právne dokumenty
+
+Všetky právne dokumenty sú dostupné v aplikácii cez footer alebo priamo na:
+- `/vop` - Všeobecné obchodné podmienky
+- `/privacy` - Zásady ochrany osobných údajov (GDPR)
+- `/disclaimer` - Vyhlásenie o odmietnutí zodpovednosti
+- `/cookies` - Cookie Policy
+- `/dpa` - Data Processing Agreement (pre B2B klientov)
+
+**Dôležité:** Pred spustením produkcie nezabudnite:
+1. Vyplniť kontaktné údaje (e-maily, adresy) v dokumentoch
+2. Dodať IČO a názov s.r.o. do Privacy Policy a DPA
+3. Skontrolovať dokumenty s právnikom
+4. Implementovať checkbox pri registrácii (súhlas s VOP a Privacy Policy)
+
+## Licencia
+
+Tento projekt je vo vývoji. Všetky práva vyhradené.
+
+## Kontakt
+
+Pre otázky a podporu kontaktujte vývojový tím.
+
