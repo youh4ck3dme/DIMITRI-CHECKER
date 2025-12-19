@@ -24,9 +24,16 @@ from services.database import (
 )
 from services.error_handler import error_handler, log_error, safe_api_call
 from services.circuit_breaker import get_all_breakers, reset_breaker
-from services.metrics import get_metrics, increment, timer, TimerContext, record_event
+from services.metrics import get_metrics, increment, timer, TimerContext, record_event, gauge
 
-app = FastAPI(title="ILUMINATI SYSTEM API", version="5.0")
+app = FastAPI(
+    title="ILUMINATI SYSTEM API",
+    version="5.0",
+    description="Cross-border company registry search API for V4 countries (SK, CZ, PL, HU)",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
+)
 
 # Global error handler
 app.add_exception_handler(Exception, error_handler)
@@ -287,10 +294,42 @@ def generate_test_data_sk(ico: str):
 
 
 
-@app.get("/api/search", response_model=GraphResponse)
-async def search_company(q: str, request: Request = None):
+@app.get("/api/search", response_model=GraphResponse, tags=["Search"])
+async def search_company(
+    q: str,
+    request: Request = None,
+    response_model_examples={
+        "slovak_ico": {
+            "summary": "Slovak IČO search",
+            "value": {
+                "q": "88888888"
+            }
+        },
+        "czech_ico": {
+            "summary": "Czech IČO search",
+            "value": {
+                "q": "27074358"
+            }
+        },
+        "polish_krs": {
+            "summary": "Polish KRS search",
+            "value": {
+                "q": "123456789"
+            }
+        }
+    }
+):
     """
-    Orchestrátor vyhľadávania s podporou SK a CZ.
+    Orchestrátor vyhľadávania s podporou V4 krajín (SK, CZ, PL, HU).
+    
+    Automaticky detekuje typ identifikátora a routuje na príslušný register:
+    - SK: 8-miestne IČO → RPO (Register právnych osôb)
+    - CZ: 8-9 miestne IČO → ARES
+    - PL: KRS alebo CEIDG → KRS/CEIDG
+    - HU: 8-11 miestny adószám → NAV
+    
+    Returns:
+        GraphResponse: Graf s nodes (firmy, osoby, adresy) a edges (vzťahy)
     """
     # Metrics - začať timer
     with TimerContext("search.duration"):

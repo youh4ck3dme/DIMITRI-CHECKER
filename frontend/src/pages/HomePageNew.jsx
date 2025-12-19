@@ -12,6 +12,7 @@ import LoadingSkeleton from '../components/LoadingSkeleton';
 import { exportToCSV, exportToPDF, exportToJSON } from '../utils/export';
 import { useTheme } from '../hooks/useTheme';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useOffline } from '../hooks/useOffline';
 import SEOHead from '../components/SEOHead';
 
 /**
