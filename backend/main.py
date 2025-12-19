@@ -26,6 +26,7 @@ from services.error_handler import error_handler, log_error, safe_api_call
 from services.circuit_breaker import get_all_breakers, reset_breaker
 from services.metrics import get_metrics, increment, timer, TimerContext, record_event, gauge
 from services.performance import timing_decorator, get_connection_pool
+from services.proxy_rotation import get_proxy_stats, init_proxy_pool
 
 app = FastAPI(
     title="ILUMINATI SYSTEM API",
@@ -46,6 +47,8 @@ async def startup_event():
     init_database()
     # Cleanup expirovaného cache pri štarte
     cleanup_expired_cache()
+    # Inicializovať proxy pool (ak sú proxy v env)
+    init_proxy_pool()
 
 # --- KONFIGURÁCIA CORS (Prepojenie s Frontendom) ---
 origins = [
@@ -156,6 +159,11 @@ async def reset_circuit_breaker(name: str):
 async def metrics():
     """Vráti metríky"""
     return get_metrics().get_metrics()
+
+@app.get("/api/proxy/stats")
+async def proxy_stats():
+    """Vráti štatistiky proxy poolu"""
+    return get_proxy_stats()
 
 @app.get("/api/health")
 def health_check():

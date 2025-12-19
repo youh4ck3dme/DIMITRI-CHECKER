@@ -39,6 +39,13 @@ node tests/test_frontend_performance.js
 FRONTEND_PERFORMANCE_RESULT=$?
 echo ""
 
+# 1.7. Proxy rotation testy
+echo -e "${YELLOW}1.7. PROXY ROTATION TESTS${NC}"
+echo "─────────────────────────────────────"
+python3 tests/test_proxy_rotation.py
+PROXY_RESULT=$?
+echo ""
+
 # 2. Frontend testy
 echo -e "${YELLOW}2. FRONTEND TESTS${NC}"
 echo "─────────────────────────────────────"
@@ -60,7 +67,7 @@ echo "📊 FINÁLNY SÚHRN"
 echo "═══════════════════════════════════════"
 echo ""
 
-TOTAL_TESTS=5
+TOTAL_TESTS=6
 PASSED=0
 
 if [ $BACKEND_RESULT -eq 0 ]; then
@@ -82,6 +89,13 @@ if [ $PERFORMANCE_RESULT -eq 0 ] && [ $FRONTEND_PERFORMANCE_RESULT -eq 0 ]; then
     PASSED=$((PASSED + 1))
 else
     echo -e "${RED}❌ Performance tests: FAILED${NC}"
+fi
+
+if [ $PROXY_RESULT -eq 0 ]; then
+    echo -e "${GREEN}✅ Proxy rotation tests: PASSED${NC}"
+    PASSED=$((PASSED + 1))
+else
+    echo -e "${RED}❌ Proxy rotation tests: FAILED${NC}"
 fi
 
 if [ $FRONTEND_RESULT -eq 0 ]; then

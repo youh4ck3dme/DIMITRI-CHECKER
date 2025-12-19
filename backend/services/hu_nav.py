@@ -4,9 +4,10 @@ API dokumentácia: https://api.nav.gov.hu/
 """
 
 import requests
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from datetime import datetime, timedelta
 import re
+from services.proxy_rotation import make_request_with_proxy
 
 # Cache pre NAV odpovede
 _nav_cache = {}
@@ -48,7 +49,12 @@ def fetch_nav_hu(tax_number: str) -> Optional[Dict]:
             "User-Agent": "ILUMINATI-SYSTEM/1.0"
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
+        # Použiť proxy rotation pre stabilitu
+        response = make_request_with_proxy(url, headers=headers, timeout=10)
+        
+        if response is None:
+            # Proxy zlyhalo, skúsiť priame volanie
+            response = requests.get(url, headers=headers, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
@@ -166,7 +172,7 @@ def calculate_hu_risk_score(company_data: Dict) -> int:
             age_years = (datetime.now() - founded_date).days / 365
             if age_years < 1:
                 score += 2
-        except:
+        except (ValueError, TypeError):
             pass
     
     return min(score, 10)
