@@ -1,6 +1,6 @@
 # 🚀 ILUMINATI SYSTEM - Ďalšie Kroky
 
-**Aktuálny stav:** ~85% dokončené | **Test coverage:** 85% (vylepšené, stále potrebuje prácu)
+**Aktuálny stav:** ~90% dokončené | **Test coverage:** 85% (vylepšené, stále potrebuje prácu)
 
 📊 **Kompletný prehľad:** Pozri [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 
@@ -110,13 +110,13 @@
 - Možnosť škálovania
 - Enterprise klienti
 
-### 7. API & Integrácie
+### 7. API & Integrácie ✅ ČIASTOČNE DOKONČENÉ
 **Čas:** 1 týždeň
 
-- [ ] RESTful API dokumentácia
-- [ ] API keys pre Enterprise
-- [ ] Webhooks pre real-time updates
-- [ ] ERP integrácie (SAP, Pohoda, Money S3)
+- [x] RESTful API dokumentácia ✅ DOKONČENÉ
+- [x] API keys pre Enterprise ✅ DOKONČENÉ
+- [x] Webhooks pre real-time updates ✅ DOKONČENÉ
+- [ ] ERP integrácie (SAP, Pohoda, Money S3) (pending)
 
 **Výhody:**
 - B2B príležitosti
