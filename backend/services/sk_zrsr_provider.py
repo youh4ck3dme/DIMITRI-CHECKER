@@ -6,6 +6,7 @@ Implementácia podľa IČO ATLAS specifikácie
 
 import re
 import time
+import warnings
 from typing import Dict, Optional
 
 import requests
@@ -30,7 +31,13 @@ class ZrsrProvider:
     def __init__(self):
         self.session = requests.Session()
         self.session.verify = False
-        requests.packages.urllib3.disable_warnings()
+        # Potlač SSL warnings
+        try:
+            import urllib3
+
+            urllib3.disable_warnings()
+        except ImportError:
+            warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
         # User-Agent pre lepšiu kompatibilitu
         self.session.headers.update(
@@ -116,7 +123,7 @@ class ZrsrProvider:
         return digits if len(digits) == 8 else None
 
     def _make_request_with_retry(
-        self, url: str, params: Optional[Dict] = None, max_retries: int = None
+        self, url: str, params: Optional[Dict] = None, max_retries: Optional[int] = None
     ) -> Optional[requests.Response]:
         """
         Vykoná HTTP request s retry mechanizmom.
@@ -281,13 +288,14 @@ class ZrsrProvider:
             return None
 
         # Vrátiť len relevantné polia (dic, ic_dph) pre obohatenie
+        # Zabezpečiť, že všetky hodnoty sú stringy (nie None)
         return {
-            "dic": result.get("dic"),
-            "ic_dph": result.get("ic_dph"),
+            "dic": result.get("dic") or "",
+            "ic_dph": result.get("ic_dph") or "",
             # Voliteľne aj ďalšie dáta
-            "name": result.get("name"),
-            "address": result.get("address"),
-            "status": result.get("status"),
+            "name": result.get("name") or "",
+            "address": result.get("address") or "",
+            "status": result.get("status") or "",
         }
 
     def _stub_company(self, ico: str) -> Optional[Dict[str, str]]:
