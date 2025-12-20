@@ -27,7 +27,7 @@ def test_erp_endpoints_require_authentication():
             response = requests.get(
                 f"{BASE_URL_HTTPS}/api/enterprise/erp/connections",
                 verify=False,  # Ignorovať SSL pre self-signed certifikáty
-                timeout=2
+                timeout=2,
             )
             assert response.status_code == 401 or response.status_code == 403
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
