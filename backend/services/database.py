@@ -61,7 +61,7 @@ class SearchHistory(Base):
 
 
 class CompanyCache(Base):
-    """Cache pre firmy (dlhodobé uloženie)"""
+    """Cache pre firmy (dlhodobé uloženie) - Hybridný model"""
 
     __tablename__ = "company_cache"
 
@@ -71,10 +71,12 @@ class CompanyCache(Base):
     )  # IČO, KRS, etc.
     country = Column(String(2), nullable=False, index=True)
     company_name = Column(String(500))
-    data = Column(JSON, nullable=False)  # Full company data
+    data = Column(JSON, nullable=False)  # Full company data (legacy)
+    company_data = Column(JSON)  # Normalized company data (12-poľový formát)
     risk_score = Column(Float)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_synced_at = Column(DateTime, default=datetime.utcnow, index=True)  # Posledná synchronizácia
     expires_at = Column(DateTime, index=True)
 
     def to_dict(self) -> Dict:

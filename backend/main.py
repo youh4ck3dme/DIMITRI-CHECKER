@@ -3,11 +3,23 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import requests
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None  # Optional dependency for ORSR scraping
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi import Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
+from services.analytics import (
+    get_api_usage,
+    get_dashboard_summary,
+    get_risk_distribution,
+    get_search_trends,
+    get_user_activity,
+)
 from services.api_keys import (
     create_api_key,
     get_api_key_stats,
@@ -48,22 +60,15 @@ from services.erp.erp_service import (
     sync_erp_data,
     test_erp_connection,
 )
-from services.analytics import (
-    get_dashboard_summary,
-    get_search_trends,
-    get_risk_distribution,
-    get_user_activity,
-    get_api_usage,
-)
-from services.favorites import (
-    add_favorite,
-    remove_favorite,
-    get_user_favorites,
-    is_favorite,
-    update_favorite_notes,
-)
 from services.erp.models import ErpType
 from services.error_handler import error_handler
+from services.favorites import (
+    add_favorite,
+    get_user_favorites,
+    is_favorite,
+    remove_favorite,
+    update_favorite_notes,
+)
 from services.hu_nav import (
     calculate_hu_risk_score,
     fetch_nav_hu,
@@ -93,6 +98,8 @@ from services.rate_limiter import get_stats as get_rate_limiter_stats
 from services.risk_intelligence import (
     generate_risk_report,
 )
+from services.search_by_name import search_by_address, search_by_name
+from services.sk_orsr_provider import get_orsr_provider
 
 # Import nových služieb
 from services.sk_rpo import (
@@ -281,6 +288,107 @@ def calculate_trust_score(company_data):
     return score
 
 
+def _scrape_orsr_sk(ico: str) -> Optional[Dict]:
+    """
+    Scrapuje dáta z ORSR.sk (Obchodný register SR).
+
+    Args:
+        ico: 8-miestne slovenské IČO
+
+    Returns:
+        Dict s dátami firmy alebo None pri chybe
+    """
+    if not BeautifulSoup:
+        return None  # BeautifulSoup nie je nainštalovaný
+
+    try:
+        # ORSR.sk URL - priamy link na výpis podľa IČO
+        # Poznámka: ORSR.sk má ochranu proti scraping, takže toto je fallback
+        # V ideálnom prípade by sme použili oficiálny API alebo RPO API
+
+        # Skúsiť nájsť ID záznamu cez vyhľadávanie
+        search_url = f"https://www.orsr.sk/hladaj_subjekt.asp?ICO={ico}"
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+
+        response = requests.get(search_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            # Parsovať HTML a extrahovať dáta
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            # Hľadať odkaz na detail firmy
+            detail_link = soup.find("a", href=lambda x: x and "vypis.asp?ID=" in x)
+            if detail_link:
+                detail_id = detail_link["href"].split("ID=")[1].split("&")[0]
+                detail_url = f"https://www.orsr.sk/vypis.asp?ID={detail_id}&SID=2&P=0"
+
+                detail_response = requests.get(detail_url, headers=headers, timeout=10)
+                if detail_response.status_code == 200:
+                    detail_soup = BeautifulSoup(detail_response.text, "html.parser")
+
+                    # Extrahovať dáta z tabuliek
+                    data = {}
+
+                    # Názov firmy
+                    name_elem = detail_soup.find(
+                        "td", string=lambda x: x and "Obchodné meno:" in str(x)
+                    )
+                    if name_elem:
+                        name_row = name_elem.find_next_sibling("td")
+                        if name_row:
+                            data["name"] = (
+                                name_row.get_text(strip=True).split("(")[0].strip()
+                            )
+
+                    # Adresa
+                    address_elem = detail_soup.find(
+                        "td", string=lambda x: x and "Sídlo:" in str(x)
+                    )
+                    if address_elem:
+                        address_row = address_elem.find_next_sibling("td")
+                        if address_row:
+                            data["address"] = address_row.get_text(strip=True)
+
+                    # Konateľ
+                    exec_elem = detail_soup.find(
+                        "td", string=lambda x: x and "štatutárny orgán:" in str(x)
+                    )
+                    if exec_elem:
+                        exec_row = exec_elem.find_next_sibling("td")
+                        if exec_row:
+                            exec_link = exec_row.find("a")
+                            if exec_link:
+                                data["executive"] = exec_link.get_text(strip=True)
+
+                    # Právna forma
+                    form_elem = detail_soup.find(
+                        "td", string=lambda x: x and "Právna forma:" in str(x)
+                    )
+                    if form_elem:
+                        form_row = form_elem.find_next_sibling("td")
+                        if form_row:
+                            data["legal_form"] = form_row.get_text(strip=True)
+
+                    # Risk score
+                    risk_score = 3
+                    if data.get("name"):
+                        risk_score = 2  # Nižšie riziko ak máme reálne dáta
+
+                    data["risk_score"] = risk_score
+                    data["details"] = f"Forma: {data.get('legal_form', 'N/A')}"
+
+                    return data if data.get("name") else None
+
+        return None
+    except Exception as e:
+        print(f"❌ Chyba pri scraping ORSR.sk: {e}")
+        return None
+
+
 # --- ENDPOINTY ---
 
 
@@ -302,7 +410,7 @@ def read_root():
             "Webhooks",
             "ERP Integrations",
             "Analytics Dashboard",
-            "Favorites System"
+            "Favorites System",
         ],
         "endpoints": {
             "health": "/api/health",
@@ -310,8 +418,8 @@ def read_root():
             "search": "/api/search",
             "auth": "/api/auth",
             "enterprise": "/api/enterprise",
-            "analytics": "/api/analytics"
-        }
+            "analytics": "/api/analytics",
+        },
     }
 
 
@@ -349,7 +457,7 @@ async def add_favorite_company(
 ):
     """
     Pridá firmu do obľúbených (len pre prihlásených používateľov)
-    
+
     Body:
         {
             "company_identifier": "12345678",
@@ -419,7 +527,9 @@ async def remove_favorite_company(
                 detail="Database not available",
             )
 
-        success = remove_favorite(db=db, user_id=current_user.id, favorite_id=favorite_id)
+        success = remove_favorite(
+            db=db, user_id=current_user.id, favorite_id=favorite_id
+        )
 
         if not success:
             raise HTTPException(
@@ -464,7 +574,7 @@ async def update_favorite_notes(
 ):
     """
     Aktualizuje poznámky k obľúbenej firme
-    
+
     Body:
         {
             "notes": "Nová poznámka"
@@ -1272,7 +1382,7 @@ async def get_analytics_search_trends(
 ):
     """
     Získať trendy vyhľadávaní (len Enterprise tier)
-    
+
     Args:
         days: Počet dní späť (default: 30)
         group_by: Agregácia - day, week, month (default: day)
@@ -1284,7 +1394,9 @@ async def get_analytics_search_trends(
         )
 
     try:
-        trends = get_search_trends(days=days, group_by=group_by, user_id=current_user.id)
+        trends = get_search_trends(
+            days=days, group_by=group_by, user_id=current_user.id
+        )
         return {"success": True, "data": trends}
     except Exception as e:
         raise HTTPException(
@@ -1300,7 +1412,7 @@ async def get_analytics_risk_distribution(
 ):
     """
     Získať distribúciu risk skóre (len Enterprise tier)
-    
+
     Args:
         days: Počet dní späť (default: 30)
     """
@@ -1327,7 +1439,7 @@ async def get_analytics_user_activity(
 ):
     """
     Získať aktivitu používateľov (len Enterprise tier)
-    
+
     Args:
         days: Počet dní späť (default: 30)
     """
@@ -1354,7 +1466,7 @@ async def get_analytics_api_usage(
 ):
     """
     Získať štatistiky API použitia (len Enterprise tier)
-    
+
     Args:
         days: Počet dní späť (default: 30)
     """
@@ -1627,10 +1739,12 @@ async def search_company(
     Orchestrátor vyhľadávania s podporou V4 krajín (SK, CZ, PL, HU).
 
     Automaticky detekuje typ identifikátora a routuje na príslušný register:
-    - SK: 8-miestne IČO → RPO (Register právnych osôb)
+    - SK: 8-miestne IČO → RPO (Register právnych osôb) alebo ORSR scraping
     - CZ: 8-9 miestne IČO → ARES
     - PL: KRS alebo CEIDG → KRS/CEIDG
     - HU: 8-11 miestny adószám → NAV
+
+    Pre textové vyhľadávanie (názov firmy) používa lokálnu DB (nie live scraping).
 
     Returns:
         GraphResponse: Graf s nodes (firmy, osoby, adresy) a edges (vzťahy)
@@ -1685,6 +1799,50 @@ async def search_company(
 
     print(f"🔍 Vyhľadávam: {query_clean}...")
 
+    # Ak query nie je číslo, skúsiť vyhľadávanie podľa názvu (len lokálna DB)
+    if not query_clean.isdigit():
+        print(f"📝 Textové vyhľadávanie: {query_clean}")
+        companies = search_by_name(query_clean, limit=10)
+        if companies:
+            # Vytvoriť graf z výsledkov
+            nodes = []
+            edges = []
+            for company in companies:
+                company_id = f"{company['country'].lower()}_{company['identifier']}"
+                nodes.append(
+                    Node(
+                        id=company_id,
+                        label=company["name"],
+                        type="company",
+                        country=company["country"],
+                        risk_score=company.get("risk_score", 3),
+                        details=f"IČO: {company['identifier']}, {company.get('legal_form', 'N/A')}",
+                        ico=company["identifier"],
+                    )
+                )
+                if company.get("address"):
+                    address_id = f"addr_{company_id}"
+                    nodes.append(
+                        Node(
+                            id=address_id,
+                            label=company["address"][:50],
+                            type="address",
+                            country=company["country"],
+                            details=company["address"],
+                        )
+                    )
+                    edges.append(
+                        Edge(source=company_id, target=address_id, type="LOCATED_AT")
+                    )
+
+            result = GraphResponse(nodes=nodes, edges=edges)
+            return result
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Firma '{query_clean}' sa nenašla v lokálnej databáze. Skúste vyhľadať podľa IČO.",
+            )
+
     # Kontrola cache
     cache_key = get_cache_key(query_clean, "search")
     cached_result = get(cache_key)
@@ -1707,8 +1865,184 @@ async def search_company(
     nodes = []
     edges = []
 
-    # Detekcia krajiny a routing (priorita: HU > PL > SK > CZ)
-    if is_hungarian_tax_number(query_clean):
+    # Detekcia krajiny a routing (priorita: SK > PL > HU > CZ pre 8-miestne čísla)
+    # Pre 8-miestne čísla skúsiť najprv SK (IČO), potom HU (adószám)
+    if is_slovak_ico(query_clean):
+        # SLOVENSKÉ IČO - Hybridný model: Cache → DB → Live Scraping
+        print(f"🇸🇰 Detekované slovenské IČO: {query_clean}")
+        increment("search.by_country", tags={"country": "SK"})
+
+        # 1. Skúsiť RPO API (ak je dostupné)
+        rpo_data = fetch_rpo_sk(query_clean)
+
+        if rpo_data:
+            normalized = parse_rpo_data(rpo_data, query_clean)
+            risk_score = calculate_sk_risk_score(normalized)
+        else:
+            # 2. Hybridný model: Cache → DB → Live Scraping (ORSR)
+            print("⚠️ RPO API nedostupné, používam hybridný model (ORSR)...")
+            orsr_provider = get_orsr_provider()
+            orsr_data = orsr_provider.lookup_by_ico(query_clean)
+
+            if orsr_data:
+                normalized = orsr_data
+                risk_score = calculate_sk_risk_score(normalized)
+            else:
+                # Fallback dáta
+                normalized = {
+                    "name": f"Firma {query_clean}",
+                    "legal_form": "s.r.o.",
+                    "status": "Aktívna",
+                    "address": "Adresa neuvedená",
+                    "executives": [],
+                    "shareholders": [],
+                }
+                risk_score = 3
+
+        # Dlhové registry - Finančná správa SR
+        debt_result = search_debt_registers(query_clean, "SK")
+        if debt_result and debt_result.get("data", {}).get("has_debt"):
+            debt_data = debt_result["data"]
+            debt_risk = debt_result.get("risk_score", 0)
+            risk_score = max(risk_score, debt_risk)  # Použiť vyšší risk
+
+        # Hlavná firma
+        company_id = f"sk_{query_clean}"
+        company_name = normalized.get("name", f"Firma {query_clean}")
+        if debt_result and debt_result.get("data", {}).get("has_debt"):
+            company_name += " [DLH]"
+
+        nodes.append(
+            Node(
+                id=company_id,
+                label=company_name,
+                type="company",
+                country="SK",
+                risk_score=risk_score,
+                details=f"IČO: {query_clean}, Status: {normalized.get('status', 'N/A')}, Forma: {normalized.get('legal_form', 'N/A')}",
+                ico=query_clean,
+            )
+        )
+
+        # Adresa
+        address_text = normalized.get("address", "Adresa neuvedená")
+        if isinstance(address_text, dict):
+            address_text = ", ".join([v for v in address_text.values() if v])
+        address_id = f"addr_sk_{query_clean}"
+        nodes.append(
+            Node(
+                id=address_id,
+                label=address_text[:50] + ("..." if len(address_text) > 50 else ""),
+                type="address",
+                country="SK",
+                details=address_text,
+            )
+        )
+        edges.append(Edge(source=company_id, target=address_id, type="LOCATED_AT"))
+
+        # Konatelia
+        executives = normalized.get("executives", [])
+        for i, exec_data in enumerate(executives[:5]):  # Max 5 pre MVP
+            exec_name = (
+                exec_data
+                if isinstance(exec_data, str)
+                else exec_data.get("name", f"Konateľ {i + 1}")
+            )
+            exec_id = f"pers_sk_{query_clean}_{i}"
+            nodes.append(
+                Node(
+                    id=exec_id,
+                    label=exec_name,
+                    type="person",
+                    country="SK",
+                    risk_score=5 if len(executives) > 10 else 2,
+                    details="Konateľ",
+                )
+            )
+            edges.append(Edge(source=company_id, target=exec_id, type="MANAGED_BY"))
+
+        # Spoločníci
+        shareholders = normalized.get("shareholders", [])
+        for i, share_data in enumerate(shareholders[:3]):  # Max 3 pre MVP
+            share_name = (
+                share_data
+                if isinstance(share_data, str)
+                else share_data.get("name", f"Spoločník {i + 1}")
+            )
+            share_id = f"share_sk_{query_clean}_{i}"
+            nodes.append(
+                Node(
+                    id=share_id,
+                    label=share_name,
+                    type="person",
+                    country="SK",
+                    risk_score=3,
+                    details="Spoločník",
+                )
+            )
+            edges.append(Edge(source=company_id, target=share_id, type="OWNED_BY"))
+            if orsr_data:
+                # Použiť dáta z ORSR
+                company_id = f"sk_{query_clean}"
+                nodes.append(
+                    Node(
+                        id=company_id,
+                        label=orsr_data.get("name", f"Firma {query_clean}"),
+                        type="company",
+                        country="SK",
+                        risk_score=orsr_data.get("risk_score", 3),
+                        details=f"IČO: {query_clean}, {orsr_data.get('details', '')}",
+                        ico=query_clean,
+                    )
+                )
+                if orsr_data.get("address"):
+                    address_id = f"addr_sk_{query_clean}"
+                    nodes.append(
+                        Node(
+                            id=address_id,
+                            label=orsr_data["address"][:50],
+                            type="address",
+                            country="SK",
+                            details=orsr_data["address"],
+                        )
+                    )
+                    edges.append(
+                        Edge(source=company_id, target=address_id, type="LOCATED_AT")
+                    )
+
+                # Pridať konateľa ak je v dátach
+                if orsr_data.get("executive"):
+                    exec_id = f"pers_sk_{query_clean}_0"
+                    nodes.append(
+                        Node(
+                            id=exec_id,
+                            label=orsr_data["executive"],
+                            type="person",
+                            country="SK",
+                            risk_score=2,
+                            details="Konateľ",
+                        )
+                    )
+                    edges.append(
+                        Edge(source=company_id, target=exec_id, type="MANAGED_BY")
+                    )
+            else:
+                # Fallback dáta
+                print("⚠️ ORSR scraping zlyhal, používam fallback dáta")
+                company_id = f"sk_{query_clean}"
+                nodes.append(
+                    Node(
+                        id=company_id,
+                        label=f"Slovenská Firma {query_clean}",
+                        type="company",
+                        country="SK",
+                        risk_score=3,
+                        details=f"IČO: {query_clean}",
+                        ico=query_clean,
+                    )
+                )
+
+    elif is_polish_krs(query_clean):
         # MAĎARSKÝ ADÓSZÁM - NAV integrácia
         print(f"🇭🇺 Detekované maďarský adószám: {query_clean}")
         increment("search.by_country", tags={"country": "HU"})
@@ -1871,97 +2205,6 @@ async def search_company(
                     ico=query_clean,
                 )
             )
-
-    elif is_slovak_ico(query_clean):
-        # SLOVENSKÉ IČO - RPO integrácia
-        print(f"🇸🇰 Detekované slovenské IČO: {query_clean}")
-        increment("search.by_country", tags={"country": "SK"})
-        rpo_data = fetch_rpo_sk(query_clean)
-
-        if rpo_data:
-            normalized = parse_rpo_data(rpo_data, query_clean)
-            risk_score = calculate_sk_risk_score(normalized)
-
-            # Dlhové registry - Finančná správa SR
-            debt_result = search_debt_registers(query_clean, "SK")
-            if debt_result and debt_result.get("data", {}).get("has_debt"):
-                debt_data = debt_result["data"]
-                debt_risk = debt_result.get("risk_score", 0)
-                risk_score = max(risk_score, debt_risk)  # Použiť vyšší risk
-
-            # Hlavná firma
-            company_id = f"sk_{query_clean}"
-            company_name = normalized.get("name", f"Firma {query_clean}")
-            if debt_result and debt_result.get("data", {}).get("has_debt"):
-                company_name += " [DLH]"
-
-            nodes.append(
-                Node(
-                    id=company_id,
-                    label=company_name,
-                    type="company",
-                    country="SK",
-                    risk_score=risk_score,
-                    details=f"IČO: {query_clean}, Status: {normalized.get('status', 'N/A')}, Forma: {normalized.get('legal_form', 'N/A')}",
-                    ico=query_clean,
-                )
-            )
-
-            # Pridať dlh do grafu ak existuje
-            if debt_result and debt_result.get("data", {}).get("has_debt"):
-                debt_data = debt_result["data"]
-                debt_id = f"debt_sk_{query_clean}"
-                total_debt = debt_data.get("total_debt", 0)
-                nodes.append(
-                    Node(
-                        id=debt_id,
-                        label=f"Dlh: {total_debt:,.0f} EUR",
-                        type="debt",
-                        country="SK",
-                        risk_score=debt_result.get("risk_score", 0),
-                        details=f"Dlh voči Finančnej správe SR: {total_debt:,.0f} EUR",
-                    )
-                )
-                edges.append(Edge(source=company_id, target=debt_id, type="HAS_DEBT"))
-
-            # Adresa
-            address_text = normalized.get("address", "Adresa neuvedená")
-            address_id = f"addr_sk_{query_clean}"
-            nodes.append(
-                Node(
-                    id=address_id,
-                    label=address_text[:30] + ("..." if len(address_text) > 30 else ""),
-                    type="address",
-                    country="SK",
-                    details=address_text,
-                )
-            )
-            edges.append(Edge(source=company_id, target=address_id, type="LOCATED_AT"))
-
-            # Konatelia
-            executives = normalized.get("executives", [])
-            for i, exec_data in enumerate(executives[:3]):  # Max 3 pre MVP
-                exec_name = (
-                    exec_data
-                    if isinstance(exec_data, str)
-                    else exec_data.get("name", f"Konateľ {i + 1}")
-                )
-                exec_id = f"pers_sk_{query_clean}_{i}"
-                nodes.append(
-                    Node(
-                        id=exec_id,
-                        label=exec_name,
-                        type="person",
-                        country="SK",
-                        risk_score=5 if len(executives) > 5 else 2,
-                        details="Konateľ",
-                    )
-                )
-                edges.append(Edge(source=company_id, target=exec_id, type="MANAGED_BY"))
-        else:
-            # Ak RPO API nie je dostupné, použijeme fallback
-            print("⚠️ RPO API nedostupné, používam fallback dáta")
-            nodes, edges = generate_test_data_sk(query_clean)
 
     else:
         # ČESKÉ IČO alebo názov - ARES integrácia
