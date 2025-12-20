@@ -35,6 +35,9 @@ Cieľ: Poskytnúť malým a stredným podnikom (SME) v regióne V4 nástroj podn
 - Python 3.10+ s pip
 - Node.js 18+ s npm
 - Git
+- Docker & Docker Compose (voliteľné, pre containerizované spustenie)
+- PostgreSQL (ak nepoužívate Docker)
+- Redis (voliteľné, pre distributed caching)
 
 ### Krok 1: Backend Setup
 

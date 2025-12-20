@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import IluminatiLogo from '../components/IluminatiLogo';
+import { exportBatchToExcel } from '../utils/export';
+import { Download } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, logout, refreshUser } = useAuth();

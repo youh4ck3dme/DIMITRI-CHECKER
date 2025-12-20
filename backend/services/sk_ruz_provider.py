@@ -6,6 +6,7 @@ Implementácia podľa IČO ATLAS specifikácie
 
 import re
 import time
+import warnings
 from typing import Dict, List, Optional
 
 import requests
@@ -34,7 +35,13 @@ class RuzProvider:
     def __init__(self):
         self.session = requests.Session()
         self.session.verify = False
-        requests.packages.urllib3.disable_warnings()
+        # Potlač SSL warnings
+        try:
+            import urllib3
+
+            urllib3.disable_warnings()
+        except ImportError:
+            warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
         # User-Agent pre lepšiu kompatibilitu
         self.session.headers.update(
@@ -86,7 +93,7 @@ class RuzProvider:
         return digits if len(digits) == 8 else None
 
     def _make_request_with_retry(
-        self, url: str, params: Optional[Dict] = None, max_retries: int = None
+        self, url: str, params: Optional[Dict] = None, max_retries: Optional[int] = None
     ) -> Optional[requests.Response]:
         """
         Vykoná HTTP request s retry mechanizmom.
@@ -141,7 +148,7 @@ class RuzProvider:
         """
         params = {"ico": ico}
         if year:
-            params["year"] = year
+            params["year"] = str(year)  # Konvertovať na string pre URL parametre
 
         response = self._make_request_with_retry(self.API_URL, params=params)
 
@@ -292,8 +299,14 @@ class RuzProvider:
         Returns:
             List s účtovnými závierkami alebo None
         """
+        if not BeautifulSoup:
+            print("⚠️ BeautifulSoup nie je nainštalovaný, HTML parsing nie je dostupný")
+            return None
+
         try:
             soup = BeautifulSoup(html, "html.parser")
+            if soup is None:
+                return None
 
             # Extrahovať DIČ a IČ DPH
             dic = None
@@ -337,13 +350,18 @@ class RuzProvider:
             if not table:
                 return None
 
+            # Skontrolovať, či table má metódu find_all (nie je NavigableString)
+            if not hasattr(table, "find_all"):
+                return None
+
             statements = []
 
             # Parsovať riadky tabuľky
-            rows = table.find_all("tr")[1:]  # Preskočiť hlavičku
+            # Type ignore: table je Tag (nie NavigableString) kvôli hasattr check vyššie
+            rows = table.find_all("tr")[1:]  # type: ignore[attr-defined]  # Preskočiť hlavičku
 
             for row in rows:
-                cells = row.find_all(["td", "th"])
+                cells = row.find_all(["td", "th"])  # type: ignore[attr-defined]
                 if len(cells) < 3:
                     continue
 

@@ -25,6 +25,7 @@ import {
   Globe,
   Loader2,
 } from 'lucide-react';
+import Disclaimer from '../components/Disclaimer';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -443,6 +444,18 @@ const Analytics = () => {
               </div>
             </div>
           </div>
+
+          {/* Disclaimer s zdrojmi dát */}
+          <Disclaimer 
+            sources={[
+              { name: 'Obchodný register SR (ORSR)', url: 'https://www.orsr.sk' },
+              { name: 'Živnostenský register SR (ZRSR)', url: 'https://www.zrsr.sk' },
+              { name: 'Register účtovných závierok (RUZ)', url: 'https://www.registeruz.sk' },
+              { name: 'ARES (ČR)', url: 'https://wwwinfo.mfcr.cz' },
+              { name: 'Finančná správa SR', url: 'https://www.financnasprava.sk' },
+            ]}
+            showFullText={false}
+          />
         </div>
       </div>
     </ProtectedRoute>

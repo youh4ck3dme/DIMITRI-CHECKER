@@ -121,3 +121,93 @@ export const exportToJSON = (data) => {
   document.body.removeChild(link);
 };
 
+/**
+ * Exportuje graf do Excel (xlsx) - volá backend API
+ */
+export const exportToExcel = async (data, token = null) => {
+  if (!data || !data.nodes || !data.edges) {
+    alert('Žiadne dáta na export');
+    return;
+  }
+
+  try {
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/export/excel`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `iluminati-export-${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Excel export error:', error);
+    alert('Export do Excel sa nepodaril. Skúste to znova alebo použite CSV export.');
+  }
+};
+
+/**
+ * Exportuje batch firiem do Excel (xlsx) - volá backend API
+ */
+export const exportBatchToExcel = async (companies, token = null) => {
+  if (!companies || companies.length === 0) {
+    alert('Žiadne firmy na export');
+    return;
+  }
+
+  try {
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/export/batch-excel`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(companies),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `iluminati-batch-export-${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Batch Excel export error:', error);
+    alert('Export do Excel sa nepodaril. Skúste to znova.');
+  }
+};
+

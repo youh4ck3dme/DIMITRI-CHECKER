@@ -96,20 +96,51 @@ const TermsOfService = () => {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-2xl font-semibold text-slate-900 mb-4">4. Fair Use Policy (Zákaz scrapovania)</h2>
-              <div className="bg-amber-50 border-l-4 border-amber-400 p-4">
+              <h2 className="text-2xl font-semibold text-slate-900 mb-4">4. Fair Use Policy & Rizikový Manažment</h2>
+              
+              <h3 className="text-xl font-semibold text-slate-800 mb-3">4.1. Zákaz scrapovania Platformy</h3>
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">
                 <p className="text-amber-800 font-semibold">
                   Je prísne zakázané používať automatizované nástroje (boty, scrapery, API bez 
                   oprávnenia) na ťažbu dát z Platformy. Porušenie vedie k okamžitému zrušeniu 
                   účtu bez náhrady a možnému právnemu postihu.
                 </p>
               </div>
-              <ul className="list-disc list-inside text-slate-700 space-y-2 ml-4 mt-4">
+              <ul className="list-disc list-inside text-slate-700 space-y-2 ml-4 mb-6">
                 <li>Zakázané je používanie web scrapingu, crawlerov alebo podobných nástrojov.</li>
                 <li>API prístup je dostupný len pre Enterprise klientov s platnou licenciou.</li>
-                <li>ILUMINATE SYSTEM si vyhradzuje právo monitorovať používanie Platformy a detegovať zneužitie.</li>
+                <li>ILUMINATI SYSTEM si vyhradzuje právo monitorovať používanie Platformy a detegovať zneužitie.</li>
                 <li>Pri porušení sa účet okamžite zablokuje a dáta môžu byť použité ako dôkaz.</li>
               </ul>
+
+              <h3 className="text-xl font-semibold text-slate-800 mb-3">4.2. Fair Use Policy pre Scraping Externých Zdrojov</h3>
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                <p className="text-blue-800 font-semibold mb-2">
+                  ILUMINATI SYSTEM dodržiava "Fair Use Policy" pri získavaní dát z externých zdrojov:
+                </p>
+                <ul className="list-disc list-inside text-blue-700 space-y-1 ml-4">
+                  <li>Nepreťažujeme štátne servery - používame rozumné rate limiting</li>
+                  <li>Používame rotujúce proxy a User-Agent hlavičky pre distribúciu záťaže</li>
+                  <li>Respektujeme robots.txt a oficiálne API endpointy, ak sú dostupné</li>
+                  <li>Cache mechanizmy znižujú počet požiadaviek na externé servery</li>
+                  <li>Vždy uvádzame zdroj dát pri zobrazení informácií</li>
+                </ul>
+              </div>
+
+              <h3 className="text-xl font-semibold text-slate-800 mb-3">4.3. Zdrojovanie Dát</h3>
+              <p className="text-slate-700 leading-relaxed mb-4">
+                ILUMINATI SYSTEM vždy uvádza zdroj dát pri zobrazení informácií. Hlavné zdroje:
+              </p>
+              <ul className="list-disc list-inside text-slate-700 space-y-2 ml-4">
+                <li><strong>Slovensko:</strong> Obchodný register SR (ORSR), Živnostenský register (ZRSR), Register účtovných závierok (RUZ), Finančná správa SR</li>
+                <li><strong>Česká republika:</strong> ARES (Administrativní registr ekonomických subjektů)</li>
+                <li><strong>Poľsko:</strong> KRS (Krajowy Rejestr Sądowy)</li>
+                <li><strong>Maďarsko:</strong> Cégközlöny</li>
+              </ul>
+              <p className="text-slate-700 leading-relaxed mt-4">
+                Všetky dáta sú získavané z verejne dostupných, oficiálnych zdrojov. 
+                ILUMINATI SYSTEM funguje ako agregátor a vizualizátor týchto dát.
+              </p>
             </section>
 
             <section className="mb-8">

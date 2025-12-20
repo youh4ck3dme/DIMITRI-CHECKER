@@ -9,7 +9,7 @@ import IluminatiLogo from '../components/IluminatiLogo';
 import ForceGraph from '../components/ForceGraph';
 import Disclaimer from '../components/Disclaimer';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { exportToCSV, exportToPDF, exportToJSON } from '../utils/export';
+import { exportToCSV, exportToPDF, exportToJSON, exportToExcel } from '../utils/export';
 import { useTheme } from '../hooks/useTheme';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useOffline } from '../hooks/useOffline';
@@ -728,6 +728,13 @@ export default function HomePageNew() {
                    </h3>
                    <div className="flex gap-2">
                      <button 
+                       onClick={() => exportToExcel(data, token)}
+                       className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded text-slate-600 font-medium hover:bg-slate-50 flex items-center gap-1.5"
+                     >
+                       <FileText size={14} />
+                       Excel
+                     </button>
+                     <button 
                        onClick={() => exportToPDF('results-section')}
                        className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded text-slate-600 font-medium hover:bg-slate-50 flex items-center gap-1.5"
                      >
@@ -797,8 +804,67 @@ export default function HomePageNew() {
             <ul className="space-y-2">
               <li className="hover:text-white cursor-pointer" onClick={() => navigate('/vop')}>VOP</li>
               <li className="hover:text-white cursor-pointer" onClick={() => navigate('/privacy')}>Ochrana údajov</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/disclaimer')}>Disclaimer</li>
               <li className="hover:text-white cursor-pointer" onClick={() => navigate('/cookies')}>Cookies</li>
             </ul>
+          </div>
+        </div>
+        
+        {/* Disclaimer s zdrojmi dát */}
+        <div className="border-t border-slate-700 mt-8 pt-6">
+          <div className="bg-slate-800/50 rounded-lg p-4 border-l-4 border-amber-500">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-amber-400 font-semibold text-sm mb-2">
+                  Dôležité upozornenie
+                </p>
+                <p className="text-slate-300 text-xs leading-relaxed mb-3">
+                  Dáta majú len informatívny charakter. Poskytovateľ negarantuje správnosť dát. 
+                  Pre oficiálne informácie použite pôvodné zdroje.
+                </p>
+                <div className="mt-3 pt-3 border-t border-slate-700">
+                  <p className="text-amber-400 font-semibold text-xs mb-2">Zdroj dát:</p>
+                  <ul className="space-y-1 text-xs text-slate-400">
+                    <li>
+                      <a href="https://www.orsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Obchodný register SR (ORSR)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://www.zrsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Živnostenský register SR (ZRSR)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://www.registeruz.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Register účtovných závierok (RUZ)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://wwwinfo.mfcr.cz" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        ARES (ČR)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://www.financnasprava.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Finančná správa SR
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+                <div className="mt-3">
+                  <button 
+                    onClick={() => navigate('/disclaimer')}
+                    className="text-amber-400 hover:text-amber-300 text-xs font-semibold underline"
+                  >
+                    Viac informácií o vylúčení zodpovednosti
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

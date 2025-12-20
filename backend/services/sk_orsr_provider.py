@@ -159,7 +159,17 @@ class OrsrProvider:
             # 2. Nájsť link na detail výpisu
             detail_link = soup.find("a", href=lambda x: x and "vypis.asp?ID=" in x)
             if not detail_link:
+                # Alternatíva: hľadať všetky linky obsahujúce "vypis"
+                all_links = soup.find_all("a", href=True)
+                for link in all_links:
+                    href = link.get("href", "")
+                    if "vypis.asp?ID=" in href:
+                        detail_link = link
+                        break
+            if not detail_link:
                 print(f"⚠️ IČO {ico} sa nenašlo v ORSR")
+                # Debug: uložiť HTML pre analýzu
+                print(f"   HTML preview: {response.text[:500]}")
                 return None
 
             detail_id = detail_link["href"].split("ID=")[1].split("&")[0]
@@ -209,6 +219,13 @@ class OrsrProvider:
 
         # Názov firmy
         name_elem = soup.find("td", string=lambda x: x and "Obchodné meno:" in str(x))
+        if not name_elem:
+            # Alternatíva: hľadať <td> obsahujúci text "Obchodné meno:"
+            tds = soup.find_all("td")
+            for td in tds:
+                if "Obchodné meno:" in td.get_text():
+                    name_elem = td
+                    break
         if name_elem:
             name_row = name_elem.find_next_sibling("td")
             if name_row:
@@ -218,6 +235,13 @@ class OrsrProvider:
 
         # Právna forma
         form_elem = soup.find("td", string=lambda x: x and "Právna forma:" in str(x))
+        if not form_elem:
+            # Alternatíva: hľadať <td> obsahujúci text "Právna forma:"
+            tds = soup.find_all("td")
+            for td in tds:
+                if "Právna forma:" in td.get_text():
+                    form_elem = td
+                    break
         if form_elem:
             form_row = form_elem.find_next_sibling("td")
             if form_row:
@@ -226,6 +250,13 @@ class OrsrProvider:
 
         # Adresa (Sídlo)
         address_elem = soup.find("td", string=lambda x: x and "Sídlo:" in str(x))
+        if not address_elem:
+            # Alternatíva: hľadať <td> obsahujúci text "Sídlo:"
+            tds = soup.find_all("td")
+            for td in tds:
+                if "Sídlo:" in td.get_text():
+                    address_elem = td
+                    break
         if address_elem:
             address_row = address_elem.find_next_sibling("td")
             if address_row:

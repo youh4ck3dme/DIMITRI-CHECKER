@@ -5,12 +5,13 @@ from typing import Dict, List, Optional
 import requests
 
 try:
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup  # type: ignore[reportMissingModuleSource]
 except ImportError:
     BeautifulSoup = None  # Optional dependency for ORSR scraping
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi import Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from services.analytics import (
@@ -62,17 +63,19 @@ from services.erp.erp_service import (
 )
 from services.erp.models import ErpType
 from services.error_handler import error_handler
+from services.export_service import export_batch_to_excel, export_to_excel
 from services.favorites import (
     add_favorite,
     get_user_favorites,
     is_favorite,
     remove_favorite,
-    update_favorite_notes,
+)
+from services.favorites import (
+    update_favorite_notes as update_favorite_notes_service,
 )
 from services.hu_nav import (
     calculate_hu_risk_score,
     fetch_nav_hu,
-    is_hungarian_tax_number,
     parse_nav_data,
 )
 from services.metrics import (
@@ -98,7 +101,7 @@ from services.rate_limiter import get_stats as get_rate_limiter_stats
 from services.risk_intelligence import (
     generate_risk_report,
 )
-from services.search_by_name import search_by_address, search_by_name
+from services.search_by_name import search_by_name
 from services.sk_orsr_provider import get_orsr_provider
 
 # Import nových služieb
@@ -150,6 +153,9 @@ async def startup_event():
 origins = [
     "http://localhost:5173",  # Vite default port
     "http://localhost:3000",
+    "http://127.0.0.1:5173",  # Vite alternative
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:52285",  # VS Code port forwarding
 ]
 
 app.add_middleware(
@@ -230,7 +236,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    email: str = payload.get("sub")
+    email: Optional[str] = payload.get("sub")
     if email is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -321,9 +327,11 @@ def _scrape_orsr_sk(ico: str) -> Optional[Dict]:
             soup = BeautifulSoup(response.text, "html.parser")
 
             # Hľadať odkaz na detail firmy
-            detail_link = soup.find("a", href=lambda x: x and "vypis.asp?ID=" in x)
-            if detail_link:
-                detail_id = detail_link["href"].split("ID=")[1].split("&")[0]
+            detail_link = soup.find("a", href=lambda x: x and "vypis.asp?ID=" in x)  # type: ignore[arg-type]
+            if detail_link and hasattr(detail_link, "get"):
+                href = detail_link.get("href", "")  # type: ignore[attr-defined]
+                if href and isinstance(href, str):
+                    detail_id = href.split("ID=")[1].split("&")[0]
                 detail_url = f"https://www.orsr.sk/vypis.asp?ID={detail_id}&SID=2&P=0"
 
                 detail_response = requests.get(detail_url, headers=headers, timeout=10)
@@ -335,7 +343,8 @@ def _scrape_orsr_sk(ico: str) -> Optional[Dict]:
 
                     # Názov firmy
                     name_elem = detail_soup.find(
-                        "td", string=lambda x: x and "Obchodné meno:" in str(x)
+                        "td",
+                        string=lambda x: x and "Obchodné meno:" in str(x),  # type: ignore[arg-type]
                     )
                     if name_elem:
                         name_row = name_elem.find_next_sibling("td")
@@ -346,7 +355,8 @@ def _scrape_orsr_sk(ico: str) -> Optional[Dict]:
 
                     # Adresa
                     address_elem = detail_soup.find(
-                        "td", string=lambda x: x and "Sídlo:" in str(x)
+                        "td",
+                        string=lambda x: x and "Sídlo:" in str(x),  # type: ignore[arg-type]
                     )
                     if address_elem:
                         address_row = address_elem.find_next_sibling("td")
@@ -355,18 +365,20 @@ def _scrape_orsr_sk(ico: str) -> Optional[Dict]:
 
                     # Konateľ
                     exec_elem = detail_soup.find(
-                        "td", string=lambda x: x and "štatutárny orgán:" in str(x)
+                        "td",
+                        string=lambda x: x and "štatutárny orgán:" in str(x),  # type: ignore[arg-type]
                     )
                     if exec_elem:
                         exec_row = exec_elem.find_next_sibling("td")
                         if exec_row:
                             exec_link = exec_row.find("a")
-                            if exec_link:
-                                data["executive"] = exec_link.get_text(strip=True)
+                            if exec_link and hasattr(exec_link, "get_text"):
+                                data["executive"] = exec_link.get_text(strip=True)  # type: ignore[attr-defined]
 
                     # Právna forma
                     form_elem = detail_soup.find(
-                        "td", string=lambda x: x and "Právna forma:" in str(x)
+                        "td",
+                        string=lambda x: x and "Právna forma:" in str(x),  # type: ignore[arg-type]
                     )
                     if form_elem:
                         form_row = form_elem.find_next_sibling("td")
@@ -475,12 +487,22 @@ async def add_favorite_company(
                 detail="Database not available",
             )
 
+        company_identifier = request.get("company_identifier")
+        company_name = request.get("company_name")
+        country = request.get("country")
+
+        if not company_identifier or not company_name or not country:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="company_identifier, company_name, and country are required",
+            )
+
         favorite = add_favorite(
             db=db,
-            user_id=current_user.id,
-            company_identifier=request.get("company_identifier"),
-            company_name=request.get("company_name"),
-            country=request.get("country"),
+            user_id=int(current_user.id),  # type: ignore[arg-type]
+            company_identifier=str(company_identifier),
+            company_name=str(company_name),
+            country=str(country),
             company_data=request.get("company_data"),
             risk_score=request.get("risk_score"),
             notes=request.get("notes"),
@@ -504,7 +526,7 @@ async def get_favorites(
                 detail="Database not available",
             )
 
-        favorites = get_user_favorites(db=db, user_id=current_user.id, limit=limit)
+        favorites = get_user_favorites(db=db, user_id=int(current_user.id), limit=limit)  # type: ignore[arg-type]
         return {
             "success": True,
             "favorites": [f.to_dict() for f in favorites],
@@ -528,7 +550,9 @@ async def remove_favorite_company(
             )
 
         success = remove_favorite(
-            db=db, user_id=current_user.id, favorite_id=favorite_id
+            db=db,
+            user_id=current_user.id,  # type: ignore[arg-type]
+            favorite_id=favorite_id,
         )
 
         if not success:
@@ -558,7 +582,7 @@ async def check_is_favorite(
 
         is_fav = is_favorite(
             db=db,
-            user_id=current_user.id,
+            user_id=current_user.id,  # type: ignore[arg-type]
             company_identifier=company_identifier,
             country=country,
         )
@@ -587,9 +611,9 @@ async def update_favorite_notes(
                 detail="Database not available",
             )
 
-        favorite = update_favorite_notes(
+        favorite = update_favorite_notes_service(
             db=db,
-            user_id=current_user.id,
+            user_id=current_user.id,  # type: ignore[arg-type]
             favorite_id=favorite_id,
             notes=request.get("notes", ""),
         )
@@ -601,6 +625,77 @@ async def update_favorite_notes(
             )
 
         return {"success": True, "favorite": favorite.to_dict()}
+
+
+# --- EXPORT ENDPOINTY ---
+
+
+@app.post("/api/export/excel")
+async def export_search_results_to_excel(
+    graph_data: Dict,
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """
+    Exportuje výsledky vyhľadávania do Excel (xlsx) formátu.
+
+    Body:
+        Dict: Grafové dáta (nodes, edges) - GraphResponse formát
+
+    Returns:
+        Excel súbor (application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)
+    """
+    try:
+        excel_bytes = export_to_excel(graph_data)
+        filename = f"iluminati-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.xlsx"
+
+        return Response(
+            content=excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503, detail=f"Excel export nie je dostupný: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Chyba pri exporte do Excel: {str(e)}"
+        )
+
+
+@app.post("/api/export/batch-excel")
+async def export_batch_companies_to_excel(
+    companies: List[Dict],
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Exportuje batch firiem do Excel (xlsx) formátu.
+
+    Body:
+        List[Dict]: Zoznam firiem (každá firma obsahuje company_data, risk_score, notes, atď.)
+
+    Returns:
+        Excel súbor (application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)
+    """
+    try:
+        excel_bytes = export_batch_to_excel(companies)
+        filename = (
+            f"iluminati-batch-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.xlsx"
+        )
+
+        return Response(
+            content=excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503, detail=f"Excel export nie je dostupný: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Chyba pri exporte do Excel: {str(e)}"
+        )
 
 
 @app.get("/api/circuit-breaker/stats")
@@ -665,14 +760,14 @@ async def register(user_data: UserRegister, request: Request):
             document_versions=user_data.document_versions,
         )
 
-        return UserResponse(
-            id=user.id,
-            email=user.email,
-            full_name=user.full_name,
-            tier=user.tier.value,
-            is_active=user.is_active,
-            is_verified=user.is_verified,
-        )
+    return UserResponse(
+        id=user.id,  # type: ignore[arg-type]
+        email=user.email,  # type: ignore[arg-type]
+        full_name=user.full_name,  # type: ignore[arg-type]
+        tier=user.tier.value,
+        is_active=user.is_active,  # type: ignore[arg-type]
+        is_verified=user.is_verified,  # type: ignore[arg-type]
+    )
 
 
 @app.post("/api/auth/login", response_model=Token)
@@ -701,7 +796,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         )
 
         # Aktualizovať last_login
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.utcnow()  # type: ignore[assignment]
         db.commit()
 
         return Token(
@@ -712,7 +807,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 "email": user.email,
                 "full_name": user.full_name,
                 "tier": user.tier.value,
-                "limits": get_user_tier_limits(user.tier),
+                "limits": get_user_tier_limits(user.tier),  # type: ignore[arg-type]
             },
         )
 
@@ -721,19 +816,19 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Získa informácie o aktuálnom používateľovi"""
     return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
+        id=current_user.id,  # type: ignore[arg-type]
+        email=current_user.email,  # type: ignore[arg-type]
+        full_name=current_user.full_name,  # type: ignore[arg-type]
         tier=current_user.tier.value,
-        is_active=current_user.is_active,
-        is_verified=current_user.is_verified,
+        is_active=current_user.is_active,  # type: ignore[arg-type]
+        is_verified=current_user.is_verified,  # type: ignore[arg-type]
     )
 
 
 @app.get("/api/auth/tier/limits")
 async def get_tier_limits(current_user: User = Depends(get_current_user)):
     """Získa limity pre tier aktuálneho používateľa"""
-    return get_user_tier_limits(current_user.tier)
+    return get_user_tier_limits(current_user.tier)  # type: ignore[arg-type]
 
 
 # --- ENTERPRISE API ENDPOINTS ---
@@ -760,7 +855,7 @@ async def generate_api_key_endpoint(
     Vytvoriť nový API key (len Enterprise tier)
     """
     # Kontrola tieru
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="API keys are only available for Enterprise tier",
@@ -775,7 +870,7 @@ async def generate_api_key_endpoint(
 
         result = create_api_key(
             db=db,
-            user_id=current_user.id,
+            user_id=current_user.id,  # type: ignore[arg-type]
             name=key_data.name,
             expires_days=key_data.expires_days,
             permissions=key_data.permissions,
@@ -795,7 +890,7 @@ async def list_api_keys(current_user: User = Depends(get_current_user)):
     """
     Získať zoznam všetkých API keys pre používateľa (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="API keys are only available for Enterprise tier",
@@ -808,7 +903,7 @@ async def list_api_keys(current_user: User = Depends(get_current_user)):
                 detail="Database not available",
             )
 
-        api_keys = get_user_api_keys(db, current_user.id)
+        api_keys = get_user_api_keys(db, current_user.id)  # type: ignore[arg-type]
 
         import json
 
@@ -820,19 +915,19 @@ async def list_api_keys(current_user: User = Depends(get_current_user)):
                     "name": key.name,
                     "prefix": key.prefix,
                     "created_at": key.created_at.isoformat(),
-                    "expires_at": key.expires_at.isoformat()
-                    if key.expires_at
+                    "expires_at": key.expires_at.isoformat()  # type: ignore[union-attr]
+                    if key.expires_at  # type: ignore[truthy-function]
                     else None,
-                    "last_used_at": key.last_used_at.isoformat()
-                    if key.last_used_at
+                    "last_used_at": key.last_used_at.isoformat()  # type: ignore[union-attr]
+                    if key.last_used_at  # type: ignore[truthy-function]
                     else None,
                     "usage_count": key.usage_count,
                     "is_active": key.is_active,
-                    "permissions": json.loads(key.permissions)
-                    if key.permissions
+                    "permissions": json.loads(key.permissions)  # type: ignore[arg-type]
+                    if key.permissions  # type: ignore[truthy-function]
                     else [],
-                    "ip_whitelist": json.loads(key.ip_whitelist)
-                    if key.ip_whitelist
+                    "ip_whitelist": json.loads(key.ip_whitelist)  # type: ignore[arg-type]
+                    if key.ip_whitelist  # type: ignore[truthy-function]
                     else None,
                 }
             )
@@ -847,7 +942,7 @@ async def revoke_api_key_endpoint(
     """
     Zrušiť (deaktivovať) API key (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="API keys are only available for Enterprise tier",
@@ -860,7 +955,7 @@ async def revoke_api_key_endpoint(
                 detail="Database not available",
             )
 
-        success = revoke_api_key(db, key_id, current_user.id)
+        success = revoke_api_key(db, key_id, current_user.id)  # type: ignore[arg-type]
 
         if not success:
             raise HTTPException(
@@ -878,7 +973,7 @@ async def get_api_key_usage(
     """
     Získať štatistiky použitia API key (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="API keys are only available for Enterprise tier",
@@ -891,7 +986,7 @@ async def get_api_key_usage(
                 detail="Database not available",
             )
 
-        stats = get_api_key_stats(db, key_id, current_user.id)
+        stats = get_api_key_stats(db, key_id, current_user.id)  # type: ignore[arg-type]
 
         if not stats:
             raise HTTPException(
@@ -920,7 +1015,7 @@ async def create_webhook_endpoint(
     """
     Vytvoriť nový webhook (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Webhooks are only available for Enterprise tier",
@@ -935,7 +1030,7 @@ async def create_webhook_endpoint(
 
         result = create_webhook(
             db=db,
-            user_id=current_user.id,
+            user_id=current_user.id,  # type: ignore[arg-type]
             url=webhook_data.url,
             events=webhook_data.events,
             secret=webhook_data.secret,
@@ -954,7 +1049,7 @@ async def list_webhooks(current_user: User = Depends(get_current_user)):
     """
     Získať zoznam všetkých webhooks pre používateľa (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Webhooks are only available for Enterprise tier",
@@ -967,7 +1062,7 @@ async def list_webhooks(current_user: User = Depends(get_current_user)):
                 detail="Database not available",
             )
 
-        webhooks = get_user_webhooks(db, current_user.id)
+        webhooks = get_user_webhooks(db, current_user.id)  # type: ignore[arg-type]
 
         import json
 
@@ -977,11 +1072,11 @@ async def list_webhooks(current_user: User = Depends(get_current_user)):
                 {
                     "id": webhook.id,
                     "url": webhook.url,
-                    "events": json.loads(webhook.events),
+                    "events": json.loads(webhook.events),  # type: ignore[arg-type]
                     "is_active": webhook.is_active,
                     "created_at": webhook.created_at.isoformat(),
-                    "last_delivered_at": webhook.last_delivered_at.isoformat()
-                    if webhook.last_delivered_at
+                    "last_delivered_at": webhook.last_delivered_at.isoformat()  # type: ignore[union-attr]
+                    if webhook.last_delivered_at  # type: ignore[truthy-function]
                     else None,
                     "success_count": webhook.success_count,
                     "failure_count": webhook.failure_count,
@@ -998,7 +1093,7 @@ async def delete_webhook_endpoint(
     """
     Zmazať webhook (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Webhooks are only available for Enterprise tier",
@@ -1011,7 +1106,7 @@ async def delete_webhook_endpoint(
                 detail="Database not available",
             )
 
-        success = delete_webhook(db, webhook_id, current_user.id)
+        success = delete_webhook(db, webhook_id, current_user.id)  # type: ignore[arg-type]
 
         if not success:
             raise HTTPException(
@@ -1029,7 +1124,7 @@ async def get_webhook_stats_endpoint(
     """
     Získať štatistiky pre webhook (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Webhooks are only available for Enterprise tier",
@@ -1042,7 +1137,7 @@ async def get_webhook_stats_endpoint(
                 detail="Database not available",
             )
 
-        stats = get_webhook_stats(db, webhook_id, current_user.id)
+        stats = get_webhook_stats(db, webhook_id, current_user.id)  # type: ignore[arg-type]
 
         if not stats:
             raise HTTPException(
@@ -1060,7 +1155,7 @@ async def get_webhook_logs(
     """
     Získať delivery logy pre webhook (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Webhooks are only available for Enterprise tier",
@@ -1073,7 +1168,7 @@ async def get_webhook_logs(
                 detail="Database not available",
             )
 
-        deliveries = get_webhook_deliveries(db, webhook_id, current_user.id, limit)
+        deliveries = get_webhook_deliveries(db, webhook_id, current_user.id, limit)  # type: ignore[arg-type]
 
         result = []
         for delivery in deliveries:
@@ -1111,7 +1206,7 @@ async def create_erp_connection_endpoint(
     """
     Vytvoriť nové ERP pripojenie (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERP integrations are only available for Enterprise tier",
@@ -1142,16 +1237,16 @@ async def create_erp_connection_endpoint(
 
         connection = create_erp_connection(
             db=db,
-            user_id=current_user.id,
+            user_id=current_user.id,  # type: ignore[arg-type]
             erp_type=erp_type,
             connection_data=erp_data.connection_data,
         )
 
         # Nastaviť sync frequency
-        connection.sync_frequency = erp_data.sync_frequency
+        connection.sync_frequency = erp_data.sync_frequency  # type: ignore[assignment]
 
         # Aktivovať pripojenie
-        if activate_erp_connection(db, connection.id, current_user.id):
+        if activate_erp_connection(db, connection.id, current_user.id):  # type: ignore[arg-type,assignment]
             db.refresh(connection)
             return {
                 "success": True,
@@ -1172,7 +1267,7 @@ async def list_erp_connections_endpoint(current_user: User = Depends(get_current
     """
     Získať zoznam všetkých ERP pripojení (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERP integrations are only available for Enterprise tier",
@@ -1185,7 +1280,7 @@ async def list_erp_connections_endpoint(current_user: User = Depends(get_current
                 detail="Database not available",
             )
 
-        connections = get_user_erp_connections(db, current_user.id)
+        connections = get_user_erp_connections(db, current_user.id)  # type: ignore[arg-type]
 
         result = [conn.to_dict() for conn in connections]
 
@@ -1199,7 +1294,7 @@ async def activate_erp_connection_endpoint(
     """
     Aktivovať ERP pripojenie (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERP integrations are only available for Enterprise tier",
@@ -1212,7 +1307,7 @@ async def activate_erp_connection_endpoint(
                 detail="Database not available",
             )
 
-        success = activate_erp_connection(db, connection_id, current_user.id)
+        success = activate_erp_connection(db, connection_id, current_user.id)  # type: ignore[arg-type]
 
         if not success:
             raise HTTPException(
@@ -1230,7 +1325,7 @@ async def deactivate_erp_connection_endpoint(
     """
     Deaktivovať ERP pripojenie (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERP integrations are only available for Enterprise tier",
@@ -1243,7 +1338,7 @@ async def deactivate_erp_connection_endpoint(
                 detail="Database not available",
             )
 
-        success = deactivate_erp_connection(db, connection_id, current_user.id)
+        success = deactivate_erp_connection(db, connection_id, current_user.id)  # type: ignore[arg-type]
 
         if not success:
             raise HTTPException(
@@ -1262,7 +1357,7 @@ async def sync_erp_data_endpoint(
     """
     Synchronizovať dáta z ERP (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERP integrations are only available for Enterprise tier",
@@ -1275,7 +1370,7 @@ async def sync_erp_data_endpoint(
                 detail="Database not available",
             )
 
-        result = sync_erp_data(db, connection_id, current_user.id, sync_type)
+        result = sync_erp_data(db, connection_id, current_user.id, sync_type)  # type: ignore[arg-type]
 
         if not result.get("success"):
             raise HTTPException(
@@ -1293,7 +1388,7 @@ async def get_erp_sync_logs_endpoint(
     """
     Získať logy synchronizácií ERP (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERP integrations are only available for Enterprise tier",
@@ -1306,7 +1401,7 @@ async def get_erp_sync_logs_endpoint(
                 detail="Database not available",
             )
 
-        logs = get_erp_sync_logs(db, connection_id, current_user.id, limit)
+        logs = get_erp_sync_logs(db, connection_id, current_user.id, limit)  # type: ignore[arg-type]
 
         result = [log.to_dict() for log in logs]
 
@@ -1323,7 +1418,7 @@ async def get_supplier_payments_endpoint(
     """
     Získať históriu platieb dodávateľa z ERP (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERP integrations are only available for Enterprise tier",
@@ -1337,7 +1432,11 @@ async def get_supplier_payments_endpoint(
             )
 
         payments = get_supplier_payment_history_from_erp(
-            db, connection_id, current_user.id, supplier_ico, days
+            db,
+            connection_id,
+            current_user.id,  # type: ignore[arg-type]
+            supplier_ico,
+            days,
         )
 
         return {
@@ -1358,7 +1457,7 @@ async def get_analytics_dashboard(
     """
     Získať kompletný analytics dashboard (len Enterprise tier)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Analytics dashboard is only available for Enterprise tier",
@@ -1387,7 +1486,7 @@ async def get_analytics_search_trends(
         days: Počet dní späť (default: 30)
         group_by: Agregácia - day, week, month (default: day)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Analytics are only available for Enterprise tier",
@@ -1395,7 +1494,9 @@ async def get_analytics_search_trends(
 
     try:
         trends = get_search_trends(
-            days=days, group_by=group_by, user_id=current_user.id
+            days=days,
+            group_by=group_by,
+            user_id=current_user.id,  # type: ignore[arg-type]
         )
         return {"success": True, "data": trends}
     except Exception as e:
@@ -1416,14 +1517,14 @@ async def get_analytics_risk_distribution(
     Args:
         days: Počet dní späť (default: 30)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Analytics are only available for Enterprise tier",
         )
 
     try:
-        distribution = get_risk_distribution(days=days, user_id=current_user.id)
+        distribution = get_risk_distribution(days=days, user_id=current_user.id)  # type: ignore[arg-type]
         return {"success": True, "data": distribution}
     except Exception as e:
         raise HTTPException(
@@ -1443,7 +1544,7 @@ async def get_analytics_user_activity(
     Args:
         days: Počet dní späť (default: 30)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Analytics are only available for Enterprise tier",
@@ -1470,7 +1571,7 @@ async def get_analytics_api_usage(
     Args:
         days: Počet dní späť (default: 30)
     """
-    if current_user.tier != UserTier.ENTERPRISE:
+    if current_user.tier != UserTier.ENTERPRISE:  # type: ignore[comparison-overlap]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Analytics are only available for Enterprise tier",
@@ -1503,7 +1604,9 @@ async def create_payment_checkout(
             )
 
         result = create_checkout_session(
-            user_id=current_user.id, user_email=current_user.email, tier=user_tier
+            user_id=current_user.id,  # type: ignore[arg-type]
+            user_email=current_user.email,  # type: ignore[arg-type]
+            tier=user_tier,
         )
 
         if "error" in result:
@@ -1544,7 +1647,7 @@ async def stripe_webhook(request: FastAPIRequest):
 @app.get("/api/payment/subscription")
 async def get_subscription(current_user: User = Depends(get_current_user)):
     """Získa subscription status používateľa"""
-    result = get_subscription_status(current_user.email)
+    result = get_subscription_status(current_user.email)  # type: ignore[arg-type]
 
     if result is None:
         return {"status": "no_subscription", "tier": current_user.tier.value}
@@ -1555,7 +1658,7 @@ async def get_subscription(current_user: User = Depends(get_current_user)):
 @app.post("/api/payment/cancel")
 async def cancel_user_subscription(current_user: User = Depends(get_current_user)):
     """Zruší subscription používateľa"""
-    result = cancel_subscription(current_user.email)
+    result = cancel_subscription(current_user.email)  # type: ignore[arg-type]
 
     if "error" in result:
         raise HTTPException(
@@ -1728,7 +1831,8 @@ def generate_test_data_sk(ico: str):
 @app.get("/api/search", response_model=GraphResponse, tags=["Search"])
 async def search_company(
     q: str,
-    request: Request = None,
+    force_refresh: bool = False,
+    request: Request = None,  # type: ignore[assignment]
     response_model_examples={
         "slovak_ico": {"summary": "Slovak IČO search", "value": {"q": "88888888"}},
         "czech_ico": {"summary": "Czech IČO search", "value": {"q": "27074358"}},
@@ -1767,11 +1871,19 @@ async def search_company(
                 in ["88888888", "27074358", "123456789", "1234567890", "12345678"]
                 or
                 # Test headers
-                request.headers.get("X-Test-Request") == "true"
-                or request.headers.get("User-Agent", "").startswith("python-requests/")
+                (request.headers.get("X-Test-Request") == "true" if request else False)
+                or (
+                    request.headers.get("User-Agent", "").startswith("python-requests/")
+                    if request
+                    else False
+                )
                 or
                 # Local development
-                request.client.host in ["127.0.0.1", "localhost", "::1"]
+                (
+                    request.client.host in ["127.0.0.1", "localhost", "::1"]
+                    if request and request.client
+                    else False
+                )
             )
 
             tier = "pro" if is_test_request else "free"
@@ -1779,18 +1891,20 @@ async def search_company(
 
             if not allowed:
                 increment("search.rate_limited")
+                retry_after = rate_info.get("retry_after", 60) if rate_info else 60
+                remaining = rate_info.get("remaining", 0) if rate_info else 0
                 raise HTTPException(
                     status_code=429,
                     detail={
                         "error": "Rate limit exceeded",
-                        "message": f"Príliš veľa požiadaviek. Skúste znova o {rate_info.get('retry_after', 60)} sekúnd.",
-                        "retry_after": rate_info.get("retry_after", 60),
-                        "remaining": rate_info.get("remaining", 0),
+                        "message": f"Príliš veľa požiadaviek. Skúste znova o {retry_after} sekúnd.",
+                        "retry_after": retry_after,
+                        "remaining": remaining,
                     },
                 )
 
         # Získať user IP pre analytics
-        user_ip = request.client.host if request and request.client else None
+        user_ip = request.client.host if request and request.client else None  # type: ignore[union-attr]
 
     """
     """
@@ -1843,13 +1957,20 @@ async def search_company(
                 detail=f"Firma '{query_clean}' sa nenašla v lokálnej databáze. Skúste vyhľadať podľa IČO.",
             )
 
-    # Kontrola cache
+    # Kontrola cache (preskočiť ak force_refresh)
     cache_key = get_cache_key(query_clean, "search")
-    cached_result = get(cache_key)
-    if cached_result:
-        print(f"✅ Cache hit pre query: {query_clean}")
-        increment("search.cache_hits")
-        return GraphResponse(**cached_result)
+    if not force_refresh:
+        cached_result = get(cache_key)
+        if cached_result:
+            print(f"✅ Cache hit pre query: {query_clean}")
+            increment("search.cache_hits")
+            return GraphResponse(**cached_result)
+    else:
+        # Vymazať cache pre tento query
+        from services.cache import delete
+
+        delete(cache_key)
+        print(f"🔄 Force refresh - cache vymazaný pre query: {query_clean}")
 
     increment("search.cache_misses")
 
@@ -1882,7 +2003,9 @@ async def search_company(
             # 2. Hybridný model: Cache → DB → Live Scraping (ORSR)
             print("⚠️ RPO API nedostupné, používam hybridný model (ORSR)...")
             orsr_provider = get_orsr_provider()
-            orsr_data = orsr_provider.lookup_by_ico(query_clean)
+            orsr_data = orsr_provider.lookup_by_ico(
+                query_clean, force_refresh=force_refresh
+            )
 
             if orsr_data:
                 normalized = orsr_data
