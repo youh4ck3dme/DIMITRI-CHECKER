@@ -45,7 +45,7 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
     """
     Vytvorí Stripe checkout session pre upgrade tieru.
     Creates or retrieves Stripe customer and stores customer ID in user record.
-    
+
     Args:
         user_id: ID používateľa
         user_email: Email používateľa
@@ -129,14 +129,14 @@ def create_checkout_session(user_id: int, user_email: str, tier: UserTier) -> Di
 def handle_webhook(payload: bytes, signature: str) -> Dict:
     """
     Spracuje Stripe webhook event.
-    
+
     Important: Stripe subscription webhooks contain 'customer' (ID), not 'customer_email'.
     We must look up users by their stored stripe_customer_id to properly handle subscription events.
-    
+
     Supported events:
     - checkout.session.completed: Upgrade user tier when payment succeeds
     - customer.subscription.deleted: Downgrade user to FREE when subscription is canceled
-    
+
     Args:
         payload: Raw webhook payload
         signature: Stripe signature
@@ -181,7 +181,7 @@ def handle_webhook(payload: bytes, signature: str) -> Dict:
         # Use Stripe customer ID to look up user (not email, which isn't in subscription object)
         subscription = event["data"]["object"]
         customer_id = subscription.get("customer")
-        
+
         if customer_id:
             with get_db_session() as db:
                 if db:
