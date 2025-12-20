@@ -66,6 +66,7 @@ class User(Base):
     
     # Relationships
     api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+    webhooks = relationship("Webhook", back_populates="user", cascade="all, delete-orphan")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

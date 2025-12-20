@@ -80,6 +80,14 @@ from services.api_keys import (
     revoke_api_key,
     get_api_key_stats,
 )
+from services.webhooks import (
+    create_webhook,
+    get_user_webhooks,
+    delete_webhook,
+    get_webhook_stats,
+    get_webhook_deliveries,
+    deliver_event_to_all_webhooks,
+)
 from middleware.api_auth import verify_api_key, check_api_permission
 from services.rate_limiter import get_client_id, is_allowed
 from services.rate_limiter import get_stats as get_rate_limiter_stats
@@ -596,6 +604,205 @@ async def get_api_key_usage(
         return {
             "success": True,
             "stats": stats
+        }
+
+
+# --- WEBHOOKS ENDPOINTS ---
+
+
+class WebhookCreate(BaseModel):
+    url: str = Field(..., description="Webhook URL endpoint")
+    events: List[str] = Field(..., description="List of event types to subscribe to")
+    secret: Optional[str] = Field(None, description="Optional secret (will be generated if not provided)")
+
+
+@app.post("/api/enterprise/webhooks")
+async def create_webhook_endpoint(
+    webhook_data: WebhookCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Vytvoriť nový webhook (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Webhooks are only available for Enterprise tier"
+        )
+    
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        
+        result = create_webhook(
+            db=db,
+            user_id=current_user.id,
+            url=webhook_data.url,
+            events=webhook_data.events,
+            secret=webhook_data.secret
+        )
+        
+        return {
+            "success": True,
+            "message": "Webhook created successfully",
+            "data": result,
+            "warning": "⚠️ Save the secret now! It will not be shown again."
+        }
+
+
+@app.get("/api/enterprise/webhooks")
+async def list_webhooks(current_user: User = Depends(get_current_user)):
+    """
+    Získať zoznam všetkých webhooks pre používateľa (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Webhooks are only available for Enterprise tier"
+        )
+    
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        
+        webhooks = get_user_webhooks(db, current_user.id)
+        
+        import json
+        result = []
+        for webhook in webhooks:
+            result.append({
+                "id": webhook.id,
+                "url": webhook.url,
+                "events": json.loads(webhook.events),
+                "is_active": webhook.is_active,
+                "created_at": webhook.created_at.isoformat(),
+                "last_delivered_at": webhook.last_delivered_at.isoformat() if webhook.last_delivered_at else None,
+                "success_count": webhook.success_count,
+                "failure_count": webhook.failure_count
+            })
+        
+        return {
+            "success": True,
+            "webhooks": result,
+            "count": len(result)
+        }
+
+
+@app.delete("/api/enterprise/webhooks/{webhook_id}")
+async def delete_webhook_endpoint(
+    webhook_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Zmazať webhook (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Webhooks are only available for Enterprise tier"
+        )
+    
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        
+        success = delete_webhook(db, webhook_id, current_user.id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Webhook not found or does not belong to user"
+            )
+        
+        return {
+            "success": True,
+            "message": "Webhook deleted successfully"
+        }
+
+
+@app.get("/api/enterprise/webhooks/{webhook_id}/stats")
+async def get_webhook_stats_endpoint(
+    webhook_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Získať štatistiky pre webhook (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Webhooks are only available for Enterprise tier"
+        )
+    
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        
+        stats = get_webhook_stats(db, webhook_id, current_user.id)
+        
+        if not stats:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Webhook not found or does not belong to user"
+            )
+        
+        return {
+            "success": True,
+            "stats": stats
+        }
+
+
+@app.get("/api/enterprise/webhooks/{webhook_id}/logs")
+async def get_webhook_logs(
+    webhook_id: int,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Získať delivery logy pre webhook (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Webhooks are only available for Enterprise tier"
+        )
+    
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available"
+            )
+        
+        deliveries = get_webhook_deliveries(db, webhook_id, current_user.id, limit)
+        
+        result = []
+        for delivery in deliveries:
+            result.append({
+                "id": delivery.id,
+                "event_type": delivery.event_type,
+                "delivery_time": delivery.delivery_time.isoformat(),
+                "success": delivery.success,
+                "response_status": delivery.response_status,
+                "error_message": delivery.error_message
+            })
+        
+        return {
+            "success": True,
+            "logs": result,
+            "count": len(result)
         }
 
 

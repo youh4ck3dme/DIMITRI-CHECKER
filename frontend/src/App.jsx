@@ -11,6 +11,7 @@ import PaymentCheckout from './pages/PaymentCheckout';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import ApiKeys from './pages/ApiKeys';
+import Webhooks from './pages/Webhooks';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DisclaimerPage from './pages/Disclaimer';
@@ -55,6 +56,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ApiKeys />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/webhooks"
+              element={
+                <ProtectedRoute>
+                  <Webhooks />
                 </ProtectedRoute>
               }
             />
