@@ -103,15 +103,29 @@ const PrivacyPolicy = () => {
               </ul>
 
               <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
-                <p className="text-amber-800 text-sm">
+                <p className="text-amber-800 text-sm mb-3">
                   <strong>Dôležité pre osoby v grafoch:</strong> Ak sa vaše meno zobrazuje v grafe 
                   a chcete byť vymazaný, kontaktujte nás na{" "}
                   <a href="mailto:privacy@crossbordernexus.com" className="underline font-semibold">
                     privacy@crossbordernexus.com
                   </a>
-                  . Každú žiadosť posúdime individuálne. Vzhľadom na to, že údaje sú verejne dostupné 
-                  v obchodných registroch, výmaz z ILUMINATE SYSTEM nezabráni ich zobrazeniu v pôvodných registroch.
+                  . Každú žiadosť posúdime individuálne.
                 </p>
+                <div className="bg-white p-3 rounded mt-3">
+                  <p className="text-amber-900 font-semibold text-xs mb-2">Postup pri žiadosti o výmaz:</p>
+                  <ol className="list-decimal list-inside text-amber-800 text-xs space-y-1 ml-2">
+                    <li>Pošlite e-mail na privacy@crossbordernexus.com s predmetom "Žiadosť o výmaz údajov"</li>
+                    <li>Uveďte vaše meno, dátum narodenia a IČO spoločnosti, kde sa zobrazujete</li>
+                    <li>Uveďte dôvod žiadosti (voliteľné, ale pomôže pri posúdení)</li>
+                    <li>Odozveme sa do 30 dní a posúdime vašu žiadosť</li>
+                    <li>Ak žiadosť schválime, údaje vymažeme do 7 dní</li>
+                  </ol>
+                  <p className="text-amber-800 text-xs mt-2 italic">
+                    Poznámka: Vzhľadom na to, že údaje sú verejne dostupné v obchodných registroch, 
+                    výmaz z ILUMINATI SYSTEM nezabráni ich zobrazeniu v pôvodných registroch. 
+                    Pre úplné odstránenie kontaktujte príslušný obchodný register.
+                  </p>
+                </div>
               </div>
             </section>
 

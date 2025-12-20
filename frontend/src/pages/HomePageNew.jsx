@@ -3,16 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Search, ShieldAlert, ShieldCheck, Activity, Lock, 
   Menu, X, Globe, FileCheck, ChevronRight, 
-  Building2, Users, AlertTriangle, Loader2, Download, FileText, Moon, Sun
+  Building2, Users, AlertTriangle, Loader2, Download, FileText, Moon, Sun, Star, Heart, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
 import IluminatiLogo from '../components/IluminatiLogo';
 import ForceGraph from '../components/ForceGraph';
 import Disclaimer from '../components/Disclaimer';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { exportToCSV, exportToPDF, exportToJSON } from '../utils/export';
+import { exportToCSV, exportToPDF, exportToJSON, exportToExcel } from '../utils/export';
 import { useTheme } from '../hooks/useTheme';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useOffline } from '../hooks/useOffline';
+import RateLimitIndicator from '../components/RateLimitIndicator';
+import { useAuth } from '../contexts/AuthContext';
 import SEOHead from '../components/SEOHead';
 
 /**
@@ -24,6 +26,9 @@ import SEOHead from '../components/SEOHead';
 export default function HomePageNew() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated, user, token } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const searchInputRef = useRef(null);
   const [query, setQuery] = useState('');
   const [data, setData] = useState(null);
@@ -31,6 +36,12 @@ export default function HomePageNew() {
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    country: '',
+    minRiskScore: '',
+    maxRiskScore: '',
+  });
 
   // Load Google Fonts
   useEffect(() => {
@@ -86,14 +97,59 @@ export default function HomePageNew() {
     setShowResults(false);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/search?q=${encodeURIComponent(query)}`);
+      // Build query params with filters
+      const params = new URLSearchParams({ q: query });
+      if (filters.country) params.append('country', filters.country);
+      if (filters.minRiskScore) params.append('min_risk_score', filters.minRiskScore);
+      if (filters.maxRiskScore) params.append('max_risk_score', filters.maxRiskScore);
+      
+      const response = await fetch(`http://localhost:8000/api/search?${params.toString()}`);
       if (!response.ok) throw new Error(`Chyba pri komunikácii so serverom: ${response.status} ${response.statusText}`);
       
       const result = await response.json();
-      if (result.nodes.length === 0) {
-        setError('Nenašli sa žiadne výsledky pre zadaný dopyt.');
+      
+      // Apply client-side filtering if backend doesn't support it
+      let filteredResult = result;
+      if (result.nodes && result.nodes.length > 0) {
+        let filteredNodes = result.nodes;
+        let filteredEdges = result.edges || [];
+        
+        // Filter by country
+        if (filters.country) {
+          filteredNodes = filteredNodes.filter(n => n.country === filters.country);
+          // Keep edges where both nodes are in filtered list
+          const nodeIds = new Set(filteredNodes.map(n => n.id));
+          filteredEdges = filteredEdges.filter(e => 
+            nodeIds.has(e.source) && nodeIds.has(e.target)
+          );
+        }
+        
+        // Filter by risk score
+        if (filters.minRiskScore || filters.maxRiskScore) {
+          const minRisk = filters.minRiskScore ? parseFloat(filters.minRiskScore) : 0;
+          const maxRisk = filters.maxRiskScore ? parseFloat(filters.maxRiskScore) : 10;
+          filteredNodes = filteredNodes.filter(n => {
+            const risk = n.risk_score || 0;
+            return risk >= minRisk && risk <= maxRisk;
+          });
+          // Update edges again
+          const nodeIds = new Set(filteredNodes.map(n => n.id));
+          filteredEdges = filteredEdges.filter(e => 
+            nodeIds.has(e.source) && nodeIds.has(e.target)
+          );
+        }
+        
+        filteredResult = {
+          ...result,
+          nodes: filteredNodes,
+          edges: filteredEdges,
+        };
+      }
+      
+      if (filteredResult.nodes.length === 0) {
+        setError('Nenašli sa žiadne výsledky pre zadaný dopyt a filtre.');
       } else {
-        setData(result);
+        setData(filteredResult);
         setShowResults(true);
         // Scroll to results
         setTimeout(() => {
@@ -105,7 +161,7 @@ export default function HomePageNew() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, filters]);
 
   // Helper: Get risk score from node
   const getRiskScore = (nodes) => {
@@ -131,6 +187,35 @@ export default function HomePageNew() {
   const mainCompany = getMainCompany();
   const riskScore = data ? getRiskScore(data.nodes) : 0;
   const riskStatus = getRiskStatus(riskScore);
+
+  // Check if company is favorite
+  useEffect(() => {
+    if (data && isAuthenticated && mainCompany && token) {
+      const checkFavorite = async () => {
+        try {
+          const companyId = mainCompany.ico || mainCompany.id?.split('_')[1] || query;
+          const country = mainCompany.country || 'SK';
+          const response = await fetch(
+            `http://localhost:8000/api/user/favorites/check/${companyId}/${country}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            }
+          );
+          if (response.ok) {
+            const result = await response.json();
+            setIsFavorite(result.is_favorite);
+          }
+        } catch (error) {
+          console.error('Error checking favorite:', error);
+        }
+      };
+      checkFavorite();
+    } else {
+      setIsFavorite(false);
+    }
+  }, [data, isAuthenticated, mainCompany, query, token]);
 
   return (
     <>
@@ -178,13 +263,23 @@ export default function HomePageNew() {
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button 
-              className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
-              onClick={() => navigate('/vop')}
-            >
-              <Lock size={14} />
-              Klientska zóna
-            </button>
+            {isAuthenticated ? (
+              <button 
+                className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
+                onClick={() => navigate('/dashboard')}
+              >
+                <Lock size={14} />
+                Dashboard
+              </button>
+            ) : (
+              <button 
+                className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
+                onClick={() => navigate('/login')}
+              >
+                <Lock size={14} />
+                Prihlásiť sa
+              </button>
+            )}
           </div>
 
           <button className="md:hidden text-slate-700" onClick={() => setMenuOpen(!menuOpen)}>
@@ -230,6 +325,11 @@ export default function HomePageNew() {
 
                 {/* Corporate Search Bar */}
                 <div className="max-w-3xl mx-auto">
+                  {isAuthenticated && (
+                    <div className="mb-4">
+                      <RateLimitIndicator />
+                    </div>
+                  )}
                   {loading ? (
                     <LoadingSkeleton type="search" />
                   ) : (
@@ -265,6 +365,93 @@ export default function HomePageNew() {
                       </button>
                     </form>
                   )}
+
+                  {/* Advanced Search Filters */}
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                      className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors mx-auto"
+                    >
+                      <Filter size={16} />
+                      <span>Pokročilé filtre</span>
+                      {showAdvancedFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    
+                    {showAdvancedFilters && (
+                      <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Country Filter */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Krajina
+                            </label>
+                            <select
+                              value={filters.country}
+                              onChange={(e) => setFilters({...filters, country: e.target.value})}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="">Všetky krajiny</option>
+                              <option value="SK">Slovensko (SK)</option>
+                              <option value="CZ">Česká republika (CZ)</option>
+                              <option value="PL">Poľsko (PL)</option>
+                              <option value="HU">Maďarsko (HU)</option>
+                            </select>
+                          </div>
+
+                          {/* Min Risk Score */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Minimálne risk skóre
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              value={filters.minRiskScore}
+                              onChange={(e) => setFilters({...filters, minRiskScore: e.target.value})}
+                              placeholder="0"
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          {/* Max Risk Score */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Maximálne risk skóre
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              value={filters.maxRiskScore}
+                              onChange={(e) => setFilters({...filters, maxRiskScore: e.target.value})}
+                              placeholder="10"
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilters({ country: '', minRiskScore: '', maxRiskScore: '' });
+                            }}
+                            className="text-sm text-slate-600 hover:text-slate-900 underline"
+                          >
+                            Resetovať filtre
+                          </button>
+                          <div className="text-xs text-slate-500">
+                            {filters.country && `Krajina: ${filters.country} `}
+                            {filters.minRiskScore && `Min Risk: ${filters.minRiskScore} `}
+                            {filters.maxRiskScore && `Max Risk: ${filters.maxRiskScore}`}
+                            {!filters.country && !filters.minRiskScore && !filters.maxRiskScore && 'Žiadne filtre'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Error Message */}
                   {error && (
@@ -395,6 +582,103 @@ export default function HomePageNew() {
                       <strong>Analytický záver:</strong> {mainCompany.details}
                     </div>
                   )}
+
+                  {isAuthenticated && (
+                    <div className="mt-6 pt-6 border-t border-slate-200">
+                      <button
+                        onClick={async () => {
+                          if (!isAuthenticated) {
+                            navigate('/login');
+                            return;
+                          }
+                          
+                          setFavoriteLoading(true);
+                          try {
+                            const companyId = mainCompany.ico || mainCompany.id?.split('_')[1] || query;
+                            const country = mainCompany.country || 'SK';
+                            
+                            if (isFavorite) {
+                              // Remove from favorites - need to get favorite_id first
+                              const favoritesResponse = await fetch(
+                                'http://localhost:8000/api/user/favorites',
+                                {
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                  },
+                                }
+                              );
+                              if (favoritesResponse.ok) {
+                                const favoritesData = await favoritesResponse.json();
+                                const favorite = favoritesData.favorites.find(
+                                  f => f.company_identifier === companyId && f.country === country
+                                );
+                                if (favorite) {
+                                  const deleteResponse = await fetch(
+                                    `http://localhost:8000/api/user/favorites/${favorite.id}`,
+                                    {
+                                      method: 'DELETE',
+                                      headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                      },
+                                    }
+                                  );
+                                  if (deleteResponse.ok) {
+                                    setIsFavorite(false);
+                                  }
+                                }
+                              }
+                            } else {
+                              // Add to favorites
+                              const response = await fetch(
+                                'http://localhost:8000/api/user/favorites',
+                                {
+                                  method: 'POST',
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    company_identifier: companyId,
+                                    company_name: mainCompany.label || 'Unknown',
+                                    country: country,
+                                    company_data: mainCompany,
+                                    risk_score: riskScore > 0 ? riskScore : null,
+                                  }),
+                                }
+                              );
+                              if (response.ok) {
+                                setIsFavorite(true);
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error toggling favorite:', error);
+                          } finally {
+                            setFavoriteLoading(false);
+                          }
+                        }}
+                        disabled={favoriteLoading}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+                          isFavorite
+                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {favoriteLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : isFavorite ? (
+                          <>
+                            <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                            Remove from Favorites
+                          </>
+                        ) : (
+                          <>
+                            <Star className="w-4 h-4" />
+                            Add to Favorites
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Related Entities */}
@@ -443,6 +727,13 @@ export default function HomePageNew() {
                      <Activity size={18} /> Vizualizácia vzťahov
                    </h3>
                    <div className="flex gap-2">
+                     <button 
+                       onClick={() => exportToExcel(data, token)}
+                       className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded text-slate-600 font-medium hover:bg-slate-50 flex items-center gap-1.5"
+                     >
+                       <FileText size={14} />
+                       Excel
+                     </button>
                      <button 
                        onClick={() => exportToPDF('results-section')}
                        className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded text-slate-600 font-medium hover:bg-slate-50 flex items-center gap-1.5"
@@ -513,8 +804,67 @@ export default function HomePageNew() {
             <ul className="space-y-2">
               <li className="hover:text-white cursor-pointer" onClick={() => navigate('/vop')}>VOP</li>
               <li className="hover:text-white cursor-pointer" onClick={() => navigate('/privacy')}>Ochrana údajov</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/disclaimer')}>Disclaimer</li>
               <li className="hover:text-white cursor-pointer" onClick={() => navigate('/cookies')}>Cookies</li>
             </ul>
+          </div>
+        </div>
+        
+        {/* Disclaimer s zdrojmi dát */}
+        <div className="border-t border-slate-700 mt-8 pt-6">
+          <div className="bg-slate-800/50 rounded-lg p-4 border-l-4 border-amber-500">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-amber-400 font-semibold text-sm mb-2">
+                  Dôležité upozornenie
+                </p>
+                <p className="text-slate-300 text-xs leading-relaxed mb-3">
+                  Dáta majú len informatívny charakter. Poskytovateľ negarantuje správnosť dát. 
+                  Pre oficiálne informácie použite pôvodné zdroje.
+                </p>
+                <div className="mt-3 pt-3 border-t border-slate-700">
+                  <p className="text-amber-400 font-semibold text-xs mb-2">Zdroj dát:</p>
+                  <ul className="space-y-1 text-xs text-slate-400">
+                    <li>
+                      <a href="https://www.orsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Obchodný register SR (ORSR)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://www.zrsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Živnostenský register SR (ZRSR)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://www.registeruz.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Register účtovných závierok (RUZ)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://wwwinfo.mfcr.cz" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        ARES (ČR)
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://www.financnasprava.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                        Finančná správa SR
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+                <div className="mt-3">
+                  <button 
+                    onClick={() => navigate('/disclaimer')}
+                    className="text-amber-400 hover:text-amber-300 text-xs font-semibold underline"
+                  >
+                    Viac informácií o vylúčení zodpovednosti
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

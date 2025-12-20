@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Shield, Cookie, AlertCircle } from 'lucide-react';
 import Logo from './Logo';
+import Disclaimer from './Disclaimer';
 
 const Footer = () => {
   return (
@@ -52,6 +53,11 @@ const Footer = () => {
                   Data Processing Agreement (B2B)
                 </Link>
               </li>
+              <li>
+                <Link to="/license" className="hover:text-[#FFD700] transition-colors text-gray-300">
+                  Open-source licencia
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -63,12 +69,21 @@ const Footer = () => {
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
+                <a href="mailto:support@crossbordernexus.com" className="hover:text-[#FFD700] transition-colors text-gray-300">
+                  support@crossbordernexus.com
+                </a>
+              </li>
+              <li>
                 <a href="mailto:privacy@crossbordernexus.com" className="hover:text-[#FFD700] transition-colors text-gray-300">
                   privacy@crossbordernexus.com
                 </a>
               </li>
-              <li className="text-gray-500">
+              <li className="text-gray-400 text-xs">
                 Pre otázky týkajúce sa GDPR a ochrany údajov
+              </li>
+              <li className="text-gray-400 text-xs mt-3">
+                Cross-Border Nexus s.r.o.<br/>
+                Bratislava, Slovensko
               </li>
             </ul>
           </div>
@@ -79,15 +94,32 @@ const Footer = () => {
               <AlertCircle size={18} />
               Dôležité
             </h4>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-400 mb-3">
               Dáta zobrazené na portáli sú agregované z verejných zdrojov. 
               Slúžia výhradne na podporu rozhodovania a nenahrádzajú oficiálne právne úkony.
+            </p>
+            <p className="text-xs text-gray-500 italic">
+              Poskytovateľ negarantuje správnosť dát. Dáta majú len informatívny charakter.
             </p>
           </div>
         </div>
 
-        <div className="border-t border-[#D4AF37]/20 mt-8 pt-8 text-center text-sm text-gray-400">
-          <p>&copy; {new Date().getFullYear()} Cross-Border Nexus - ILUMINETE SYSTEM. Všetky práva vyhradené.</p>
+        {/* Disclaimer s zdrojmi dát */}
+        <div className="border-t border-[#D4AF37]/20 mt-8 pt-6">
+          <Disclaimer 
+            compact={true}
+            sources={[
+              { name: 'Obchodný register SR (ORSR)', url: 'https://www.orsr.sk' },
+              { name: 'Živnostenský register SR (ZRSR)', url: 'https://www.zrsr.sk' },
+              { name: 'Register účtovných závierok (RUZ)', url: 'https://www.registeruz.sk' },
+              { name: 'ARES (ČR)', url: 'https://wwwinfo.mfcr.cz' },
+              { name: 'Finančná správa SR', url: 'https://www.financnasprava.sk' },
+            ]}
+          />
+        </div>
+
+        <div className="border-t border-[#D4AF37]/20 mt-6 pt-6 text-center text-sm text-gray-400">
+          <p>&copy; {new Date().getFullYear()} Cross-Border Nexus - ILUMINATI SYSTEM. Všetky práva vyhradené.</p>
           <p className="mt-2 text-[#D4AF37]/60">Verzia 1.1 - MVP (Proof of Concept)</p>
         </div>
       </div>
