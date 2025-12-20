@@ -9,7 +9,11 @@ import time
 from typing import Dict, List, Optional
 
 import requests
-from bs4 import BeautifulSoup
+
+try:
+    from bs4 import BeautifulSoup  # type: ignore[reportMissingModuleSource]
+except ImportError:
+    BeautifulSoup = None  # Fallback ak nie je nainštalovaný
 
 
 class RuzProvider:
