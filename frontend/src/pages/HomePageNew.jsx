@@ -16,6 +16,7 @@ import { useOffline } from '../hooks/useOffline';
 import RateLimitIndicator from '../components/RateLimitIndicator';
 import { useAuth } from '../contexts/AuthContext';
 import SEOHead from '../components/SEOHead';
+import { API_URL } from '../config/api';
 
 /**
  * ILUMINATI SYSTEM v5.0 - SLOVAK ENTERPRISE EDITION
@@ -103,7 +104,7 @@ export default function HomePageNew() {
       if (filters.minRiskScore) params.append('min_risk_score', filters.minRiskScore);
       if (filters.maxRiskScore) params.append('max_risk_score', filters.maxRiskScore);
       
-      const response = await fetch(`http://localhost:8000/api/search?${params.toString()}`);
+      const response = await fetch(`${API_URL}/api/search?${params.toString()}`);
       if (!response.ok) throw new Error(`Chyba pri komunikácii so serverom: ${response.status} ${response.statusText}`);
       
       const result = await response.json();
@@ -196,7 +197,7 @@ export default function HomePageNew() {
           const companyId = mainCompany.ico || mainCompany.id?.split('_')[1] || query;
           const country = mainCompany.country || 'SK';
           const response = await fetch(
-            `http://localhost:8000/api/user/favorites/check/${companyId}/${country}`,
+            `${API_URL}/api/user/favorites/check/${companyId}/${country}`,
             {
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -600,7 +601,7 @@ export default function HomePageNew() {
                             if (isFavorite) {
                               // Remove from favorites - need to get favorite_id first
                               const favoritesResponse = await fetch(
-                                'http://localhost:8000/api/user/favorites',
+                                `${API_URL}/api/user/favorites`,
                                 {
                                   headers: {
                                     'Authorization': `Bearer ${token}`,
@@ -614,7 +615,7 @@ export default function HomePageNew() {
                                 );
                                 if (favorite) {
                                   const deleteResponse = await fetch(
-                                    `http://localhost:8000/api/user/favorites/${favorite.id}`,
+                                    `${API_URL}/api/user/favorites/${favorite.id}`,
                                     {
                                       method: 'DELETE',
                                       headers: {
@@ -630,7 +631,7 @@ export default function HomePageNew() {
                             } else {
                               // Add to favorites
                               const response = await fetch(
-                                'http://localhost:8000/api/user/favorites',
+                                `${API_URL}/api/user/favorites`,
                                 {
                                   method: 'POST',
                                   headers: {
@@ -781,7 +782,6 @@ export default function HomePageNew() {
               <IluminatiLogo size={24} /> ILUMINATI
             </div>
             <p className="mb-4">Profesionálny nástroj pre overovanie obchodných partnerov.</p>
-            <p>© 2025 Iluminati Corp s.r.o.</p>
           </div>
           <div>
             <h4 className="text-white font-bold mb-4">Produkt</h4>
@@ -813,56 +813,58 @@ export default function HomePageNew() {
         {/* Disclaimer s zdrojmi dát */}
         <div className="border-t border-slate-700 mt-8 pt-6">
           <div className="bg-slate-800/50 rounded-lg p-4 border-l-4 border-amber-500">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-amber-400 font-semibold text-sm mb-2">
-                  Dôležité upozornenie
-                </p>
-                <p className="text-slate-300 text-xs leading-relaxed mb-3">
-                  Dáta majú len informatívny charakter. Poskytovateľ negarantuje správnosť dát. 
-                  Pre oficiálne informácie použite pôvodné zdroje.
-                </p>
-                <div className="mt-3 pt-3 border-t border-slate-700">
-                  <p className="text-amber-400 font-semibold text-xs mb-2">Zdroj dát:</p>
-                  <ul className="space-y-1 text-xs text-slate-400">
-                    <li>
-                      <a href="https://www.orsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
-                        Obchodný register SR (ORSR)
-                      </a>
-                    </li>
-                    <li>
-                      <a href="https://www.zrsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
-                        Živnostenský register SR (ZRSR)
-                      </a>
-                    </li>
-                    <li>
-                      <a href="https://www.registeruz.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
-                        Register účtovných závierok (RUZ)
-                      </a>
-                    </li>
-                    <li>
-                      <a href="https://wwwinfo.mfcr.cz" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
-                        ARES (ČR)
-                      </a>
-                    </li>
-                    <li>
-                      <a href="https://www.financnasprava.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
-                        Finančná správa SR
-                      </a>
-                    </li>
-                  </ul>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-amber-400 font-semibold text-sm mb-2">
+                    Dôležité upozornenie
+                  </p>
+                  <p className="text-slate-300 text-xs leading-relaxed">
+                    Dáta majú len informatívny charakter. Poskytovateľ negarantuje správnosť dát. 
+                    Pre oficiálne informácie použite pôvodné zdroje.
+                  </p>
                 </div>
-                <div className="mt-3">
-                  <button 
-                    onClick={() => navigate('/disclaimer')}
-                    className="text-amber-400 hover:text-amber-300 text-xs font-semibold underline"
-                  >
-                    Viac informácií o vylúčení zodpovednosti
-                  </button>
-                </div>
+              </div>
+              <div className="pl-8">
+                <p className="text-amber-400 font-semibold text-xs mb-2">Zdroj dát:</p>
+                <ul className="space-y-1 text-xs text-slate-400">
+                  <li>
+                    <a href="https://www.orsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                      Obchodný register SR (ORSR)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.zrsr.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                      Živnostenský register SR (ZRSR)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.registeruz.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                      Register účtovných závierok (RUZ)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://wwwinfo.mfcr.cz" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                      ARES (ČR)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.financnasprava.sk" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">
+                      Finančná správa SR
+                    </a>
+                  </li>
+                </ul>
+              </div>
+              <div className="mt-3 pl-8">
+                <button 
+                  onClick={() => navigate('/disclaimer')}
+                  className="text-amber-400 hover:text-amber-300 text-xs font-semibold underline"
+                >
+                  Viac informácií o vylúčení zodpovednosti
+                </button>
               </div>
             </div>
           </div>

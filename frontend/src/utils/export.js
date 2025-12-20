@@ -1,6 +1,7 @@
 /**
  * Export utility funkcie pre PDF a CSV
  */
+import { API_URL } from '../config/api';
 
 /**
  * Exportuje graf do CSV
@@ -131,7 +132,7 @@ export const exportToExcel = async (data, token = null) => {
   }
 
   try {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        // API_URL je importovaný z config/api.js
     const headers = {
       'Content-Type': 'application/json',
     };
@@ -176,7 +177,7 @@ export const exportBatchToExcel = async (companies, token = null) => {
   }
 
   try {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        // API_URL je importovaný z config/api.js
     const headers = {
       'Content-Type': 'application/json',
     };

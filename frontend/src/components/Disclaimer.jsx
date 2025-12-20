@@ -22,42 +22,44 @@ const Disclaimer = ({
 
   if (compact) {
     return (
-      <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 rounded text-xs">
-        <div className="flex items-start gap-2">
-          <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" size={14} />
-          <div className="flex-1">
-            <p className="text-amber-900 dark:text-amber-200 font-semibold mb-1">
-              Dôležité upozornenie
-            </p>
-            <p className="text-amber-800 dark:text-amber-300 leading-relaxed">
-              Dáta majú len informatívny charakter. Poskytovateľ negarantuje správnosť dát. 
-              Pre oficiálne informácie použite pôvodné zdroje.
-            </p>
-            {displaySources.length > 0 && (
-              <div className="mt-2">
-                <p className="text-amber-900 dark:text-amber-200 font-semibold text-xs mb-1">Zdroj dát:</p>
-                <ul className="list-disc list-inside text-amber-800 dark:text-amber-300 space-y-0.5">
-                  {displaySources.map((source, idx) => (
-                    <li key={idx} className="text-xs">
-                      {source.url ? (
-                        <a 
-                          href={source.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="hover:underline inline-flex items-center gap-1"
-                        >
-                          {source.name}
-                          <ExternalLink size={10} />
-                        </a>
-                      ) : (
-                        source.name
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+      <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 rounded text-xs">
+        <div className="space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" size={14} />
+            <div className="flex-1">
+              <p className="text-amber-900 dark:text-amber-200 font-semibold mb-1">
+                Dôležité upozornenie
+              </p>
+              <p className="text-amber-800 dark:text-amber-300 leading-relaxed">
+                Dáta majú len informatívny charakter. Poskytovateľ negarantuje správnosť dát. 
+                Pre oficiálne informácie použite pôvodné zdroje.
+              </p>
+            </div>
           </div>
+          {displaySources.length > 0 && (
+            <div className="mt-2 pl-6">
+              <p className="text-amber-900 dark:text-amber-200 font-semibold text-xs mb-1.5">Zdroj dát:</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1 text-amber-800 dark:text-amber-300">
+                {displaySources.map((source, idx) => (
+                  <div key={idx} className="text-xs flex items-center gap-1">
+                    {source.url ? (
+                      <a 
+                        href={source.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="hover:underline inline-flex items-center gap-1"
+                      >
+                        {source.name}
+                        <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span>{source.name}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

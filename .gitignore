@@ -58,3 +58,9 @@ docs/_build/
 *.pyo
 *.pyd
 
+# SSL Certificates (self-signed for local development)
+ssl/*.pem
+ssl/*.key
+ssl/*.crt
+ssl/*.cert
+

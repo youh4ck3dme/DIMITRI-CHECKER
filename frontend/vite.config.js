@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
 
 export default defineConfig({
   plugins: [
@@ -107,6 +109,25 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   server: {
+    port: 8009,
+    host: true,
+    https: (() => {
+      // SSL konfigurácia
+      const sslKeyPath = path.resolve(__dirname, '../ssl/key.pem')
+      const sslCertPath = path.resolve(__dirname, '../ssl/cert.pem')
+      
+      // Kontrola, či existujú SSL súbory
+      if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
+        console.log('🔐 Používam SSL certifikáty pre HTTPS...')
+        return {
+          key: fs.readFileSync(sslKeyPath),
+          cert: fs.readFileSync(sslCertPath),
+        }
+      } else {
+        console.log('⚠️ SSL certifikáty nenájdené, používam HTTP...')
+        return false
+      }
+    })(),
     hmr: {
       overlay: true
     }

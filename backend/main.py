@@ -151,11 +151,17 @@ async def startup_event():
 
 # --- KONFIGURÁCIA CORS (Prepojenie s Frontendom) ---
 origins = [
+    # HTTP origins
     "http://localhost:5173",  # Vite default port
     "http://localhost:3000",
+    "http://localhost:8009",  # Frontend port (zmenený z 3000)
     "http://127.0.0.1:5173",  # Vite alternative
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:8009",  # Frontend port alternative
     "http://127.0.0.1:52285",  # VS Code port forwarding
+    # HTTPS origins (pre SSL)
+    "https://localhost:8009",  # Frontend HTTPS
+    "https://127.0.0.1:8009",  # Frontend HTTPS alternative
 ]
 
 app.add_middleware(
@@ -426,11 +432,22 @@ def read_root():
         ],
         "endpoints": {
             "health": "/api/health",
-            "docs": "/docs",
+            "docs": "/api/docs",
             "search": "/api/search",
             "auth": "/api/auth",
             "enterprise": "/api/enterprise",
             "analytics": "/api/analytics",
+            "export": {
+                "excel": "/api/export/excel",
+                "batch_excel": "/api/export/batch-excel",
+            },
+        },
+        "supported_formats": ["JSON", "CSV", "PDF", "Excel (XLSX)"],
+        "supported_countries": {
+            "SK": "Slovensko (ORSR, ZRSR, RUZ)",
+            "CZ": "Česká republika (ARES)",
+            "PL": "Poľsko (KRS)",
+            "HU": "Maďarsko (NAV)",
         },
     }
 
@@ -1986,8 +2003,121 @@ async def search_company(
     nodes = []
     edges = []
 
-    # Detekcia krajiny a routing (priorita: SK > PL > HU > CZ pre 8-miestne čísla)
-    # Pre 8-miestne čísla skúsiť najprv SK (IČO), potom HU (adószám)
+    # Detekcia krajiny a routing (priorita: CZ > SK > PL > HU pre 8-miestne čísla)
+    # Pre 8-miestne čísla najprv skúsiť CZ (ARES), potom SK (IČO), potom HU (adószám)
+    # Pre české IČO (8-9 miest) skúsiť najprv ARES
+    is_8_digit = len(query_clean) == 8 and query_clean.isdigit()
+    is_9_digit = len(query_clean) == 9 and query_clean.isdigit()
+
+    # Pre 8-9 miestne čísla najprv skúsiť české IČO (ARES)
+    if (is_8_digit or is_9_digit) and query_clean.isdigit():
+        # Skúsiť najprv ARES (CZ)
+        print(f"🔍 Skúšam ARES (CZ) pre {query_clean}...")
+        ares_data = fetch_ares_cz(query_clean)
+        results = ares_data.get("ekonomickeSubjekty", [])
+
+        if results and len(results) > 0:
+            # Našli sme dáta v ARES - je to české IČO
+            print(f"✅ Nájdené v ARES (CZ): {query_clean}")
+            increment("search.by_country", tags={"country": "CZ"})
+
+            # Normalizácia a budovanie grafu pre CZ
+            for item in results:
+                ico = item.get("ico", "N/A")
+                name = item.get("obchodniJmeno", "Neznáma firma")
+                address_text = item.get("sidlo", {}).get(
+                    "textovaAdresa", "Adresa neuvedená"
+                )
+
+                company_id = f"cz_{ico}"
+                risk = calculate_trust_score(item)
+
+                # Dlhové registry - Finančná správa ČR
+                debt_result = search_debt_registers(ico, "CZ")
+                if debt_result and debt_result.get("data", {}).get("has_debt"):
+                    debt_data = debt_result["data"]
+                    debt_risk = debt_result.get("risk_score", 0)
+                    risk = max(risk, debt_risk)  # Použiť vyšší risk
+
+                nodes.append(
+                    Node(
+                        id=company_id,
+                        label=name,
+                        type="company",
+                        country="CZ",
+                        risk_score=risk,
+                        details=f"IČO: {ico}, Status: Aktívna, Forma: s.r.o.",
+                        ico=ico,
+                    )
+                )
+
+                # Dlhové registry
+                if debt_result and debt_result.get("data", {}).get("has_debt"):
+                    total_debt = debt_result["data"].get("total_debt", 0)
+                    debt_id = f"debt_cz_{ico}"
+                    nodes.append(
+                        Node(
+                            id=debt_id,
+                            label=f"Dlh: {total_debt:,.0f} CZK",
+                            type="debt",
+                            country="CZ",
+                            risk_score=debt_result.get("risk_score", 0),
+                            details=f"Dlh voči Finančnej správe ČR: {total_debt:,.0f} CZK",
+                        )
+                    )
+                    edges.append(
+                        Edge(source=company_id, target=debt_id, type="HAS_DEBT")
+                    )
+
+                # Adresa
+                if address_text and address_text != "Adresa neuvedená":
+                    address_id = f"addr_cz_{ico}"
+                    nodes.append(
+                        Node(
+                            id=address_id,
+                            label=address_text[:20] + "...",
+                            type="address",
+                            country="CZ",
+                            details=address_text,
+                        )
+                    )
+                    edges.append(
+                        Edge(source=company_id, target=address_id, type="LOCATED_AT")
+                    )
+
+                # Konateľ
+                if item.get("statutarniOrgany"):
+                    for organ in item["statutarniOrgany"]:
+                        if organ.get("nazev") == "jednatel":
+                            for person in organ.get("clenove", []):
+                                person_name = person.get("jmeno", "Neznámy")
+                                person_id = (
+                                    f"person_cz_{ico}_{person_name.replace(' ', '_')}"
+                                )
+                                nodes.append(
+                                    Node(
+                                        id=person_id,
+                                        label=person_name,
+                                        type="person",
+                                        country="CZ",
+                                        details="Konateľ",
+                                    )
+                                )
+                                edges.append(
+                                    Edge(
+                                        source=company_id,
+                                        target=person_id,
+                                        type="MANAGED_BY",
+                                    )
+                                )
+
+            # Vrátiť výsledky pre CZ
+            return GraphResponse(nodes=nodes, edges=edges)
+        else:
+            # ARES nevrátil dáta - skúsiť SK
+            print(f"⚠️ ARES nevrátil dáta, skúšam SK pre {query_clean}...")
+
+    # SLOVENSKÉ IČO - Hybridný model: Cache → DB → Live Scraping
     if is_slovak_ico(query_clean):
         # SLOVENSKÉ IČO - Hybridný model: Cache → DB → Live Scraping
         print(f"🇸🇰 Detekované slovenské IČO: {query_clean}")
@@ -2330,11 +2460,45 @@ async def search_company(
             )
 
     else:
-        # ČESKÉ IČO alebo názov - ARES integrácia
-        print(f"🇨🇿 Vyhľadávam v ARES (CZ): {query_clean}")
-        increment("search.by_country", tags={"country": "CZ"})
-        ares_data = fetch_ares_cz(query_clean)
-        results = ares_data.get("ekonomickeSubjekty", [])
+        # Textové vyhľadávanie (názov firmy) - ARES integrácia alebo lokálna DB
+        # Pre číselné IČO už bolo spracované vyššie
+        if query_clean.isdigit():
+            # Ak je to číslo, ale nebolo nájdené v žiadnom registri, vrátiť prázdny výsledok
+            print(f"⚠️ IČO {query_clean} nebolo nájdené v žiadnom registri")
+            return GraphResponse(nodes=[], edges=[])
+
+        # Textové vyhľadávanie - najprv lokálna DB, potom ARES
+        print(f"🔍 Textové vyhľadávanie: {query_clean}")
+
+        # Skúsiť lokálnu DB (full-text search)
+        db_results = search_by_name(query_clean)
+
+        if db_results and len(db_results) > 0:
+            # Použiť dáta z lokálnej DB
+            print(f"✅ Nájdené v lokálnej DB: {len(db_results)} výsledkov")
+            for company in db_results:
+                company_id = f"sk_{company.get('identifier', 'unknown')}"
+                company_name = (
+                    company.get("company_name")
+                    or f"Firma {company.get('identifier', 'unknown')}"
+                )
+                nodes.append(
+                    Node(
+                        id=company_id,
+                        label=company_name,
+                        type="company",
+                        country=company.get("country", "SK"),
+                        risk_score=company.get("risk_score", 0) or 0,
+                        details=f"IČO: {company.get('identifier', 'unknown')}",
+                        ico=company.get("identifier"),
+                    )
+                )
+        else:
+            # Skúsiť ARES pre textové vyhľadávanie
+            print(f"🇨🇿 Vyhľadávam v ARES (CZ): {query_clean}")
+            increment("search.by_country", tags={"country": "CZ"})
+            ares_data = fetch_ares_cz(query_clean)
+            results = ares_data.get("ekonomickeSubjekty", [])
 
         # Normalizácia a budovanie grafu
         for item in results:
@@ -2486,6 +2650,28 @@ async def search_company(
 
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # SSL konfigurácia
+    ssl_keyfile = os.path.join(os.path.dirname(__file__), "..", "ssl", "key.pem")
+    ssl_certfile = os.path.join(os.path.dirname(__file__), "..", "ssl", "cert.pem")
+
+    # Kontrola, či existujú SSL súbory
+    use_ssl = os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile)
+
+    if use_ssl:
+        print("🔐 Spúšťam server s SSL (HTTPS)...")
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            ssl_keyfile=ssl_keyfile,
+            ssl_certfile=ssl_certfile,
+        )
+    else:
+        print("⚠️ SSL certifikáty nenájdené, spúšťam server bez SSL (HTTP)...")
+        print(f"   SSL keyfile: {ssl_keyfile}")
+        print(f"   SSL certfile: {ssl_certfile}")
+        uvicorn.run(app, host="0.0.0.0", port=8000)

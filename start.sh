@@ -10,7 +10,7 @@ echo ""
 echo "🛑 Zastavujem existujúce procesy..."
 pkill -f 'python.*main.py' 2>/dev/null
 lsof -ti:8000 | xargs kill -9 2>/dev/null
-lsof -ti:5173 | xargs kill -9 2>/dev/null
+lsof -ti:8009 | xargs kill -9 2>/dev/null
 sleep 2
 
 # Spustiť backend
@@ -40,7 +40,7 @@ echo ""
 echo "✅ Servery spustené!"
 echo ""
 echo "📊 Backend: http://localhost:8000"
-echo "🎨 Frontend: http://localhost:5173"
+echo "🎨 Frontend: http://localhost:8009"
 echo ""
 echo "📝 API Docs: http://localhost:8000/docs"
 echo ""

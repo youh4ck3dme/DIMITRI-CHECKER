@@ -118,9 +118,10 @@ const Footer = () => {
           />
         </div>
 
-        <div className="border-t border-[#D4AF37]/20 mt-6 pt-6 text-center text-sm text-gray-400">
-          <p>&copy; {new Date().getFullYear()} Cross-Border Nexus - ILUMINATI SYSTEM. Všetky práva vyhradené.</p>
-          <p className="mt-2 text-[#D4AF37]/60">Verzia 1.1 - MVP (Proof of Concept)</p>
+        <div className="border-t border-[#D4AF37]/20 mt-6 pt-6">
+          <p className="text-center text-sm text-gray-400 w-full">
+            &copy; 2025 Iluminati Corp s.r.o.
+          </p>
         </div>
       </div>
     </footer>
