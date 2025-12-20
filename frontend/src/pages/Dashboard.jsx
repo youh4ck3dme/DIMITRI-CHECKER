@@ -195,13 +195,29 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <div className="mt-6 bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
           <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
-          <div className="flex space-x-4">
+          <div className="flex flex-wrap gap-4">
             <button
               onClick={() => navigate('/')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
             >
               New Search
             </button>
+            {user?.tier === 'enterprise' && (
+              <>
+                <button
+                  onClick={() => navigate('/api-keys')}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-colors"
+                >
+                  API Keys
+                </button>
+                <button
+                  onClick={() => navigate('/webhooks')}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-colors"
+                >
+                  Webhooks
+                </button>
+              </>
+            )}
             {user?.tier === 'free' && (
               <button
                 onClick={() => handleUpgrade('pro')}
