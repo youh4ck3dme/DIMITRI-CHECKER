@@ -52,6 +52,11 @@ const Footer = () => {
                   Data Processing Agreement (B2B)
                 </Link>
               </li>
+              <li>
+                <Link to="/license" className="hover:text-[#FFD700] transition-colors text-gray-300">
+                  Open-source licencia
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -63,12 +68,21 @@ const Footer = () => {
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
+                <a href="mailto:support@crossbordernexus.com" className="hover:text-[#FFD700] transition-colors text-gray-300">
+                  support@crossbordernexus.com
+                </a>
+              </li>
+              <li>
                 <a href="mailto:privacy@crossbordernexus.com" className="hover:text-[#FFD700] transition-colors text-gray-300">
                   privacy@crossbordernexus.com
                 </a>
               </li>
-              <li className="text-gray-500">
+              <li className="text-gray-400 text-xs">
                 Pre otázky týkajúce sa GDPR a ochrany údajov
+              </li>
+              <li className="text-gray-400 text-xs mt-3">
+                Cross-Border Nexus s.r.o.<br/>
+                Bratislava, Slovensko
               </li>
             </ul>
           </div>

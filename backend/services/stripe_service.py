@@ -178,16 +178,10 @@ def handle_webhook(payload: bytes, signature: str) -> Dict:
 
     elif event["type"] == "customer.subscription.deleted":
         # Subscription zrušená - downgrade na FREE
-<<<<<<< HEAD
         # Use Stripe customer ID to look up user (not email, which isn't in subscription object)
-        subscription = event['data']['object']
-        customer_id = subscription.get('customer')
-        
-=======
         subscription = event["data"]["object"]
         customer_id = subscription.get("customer")
-
->>>>>>> 9d89cd9 (feat: Implement Phase 5 - Authentication & Monetization Frontend)
+        
         if customer_id:
             with get_db_session() as db:
                 if db:

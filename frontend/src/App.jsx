@@ -10,11 +10,13 @@ import Dashboard from './pages/Dashboard';
 import PaymentCheckout from './pages/PaymentCheckout';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
+import ApiKeys from './pages/ApiKeys';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DisclaimerPage from './pages/Disclaimer';
 import CookiePolicy from './pages/CookiePolicy';
 import DataProcessingAgreement from './pages/DataProcessingAgreement';
+import License from './pages/License';
 
 function App() {
   return (
@@ -48,12 +50,21 @@ function App() {
             />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
+            <Route
+              path="/api-keys"
+              element={
+                <ProtectedRoute>
+                  <ApiKeys />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/vop" element={<TermsOfService />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/disclaimer" element={<DisclaimerPage />} />
             <Route path="/cookies" element={<CookiePolicy />} />
             <Route path="/dpa" element={<DataProcessingAgreement />} />
+            <Route path="/license" element={<License />} />
           </Routes>
         </Router>
       </AuthProvider>

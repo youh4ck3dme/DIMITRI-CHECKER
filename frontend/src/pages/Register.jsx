@@ -40,17 +40,17 @@ const Register = () => {
 
     // Validácia
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Heslá sa nezhodujú');
       return;
     }
 
     if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError('Heslo musí mať aspoň 8 znakov');
       return;
     }
 
     if (passwordStrength < 2) {
-      setError('Password is too weak. Use uppercase, lowercase, and numbers.');
+      setError('Heslo je príliš slabé. Použite veľké, malé písmená a čísla.');
       return;
     }
 
@@ -76,10 +76,10 @@ const Register = () => {
   };
 
   const getStrengthText = () => {
-    if (passwordStrength <= 1) return 'Weak';
-    if (passwordStrength === 2) return 'Fair';
-    if (passwordStrength === 3) return 'Good';
-    return 'Strong';
+    if (passwordStrength <= 1) return 'Slabé';
+    if (passwordStrength === 2) return 'Priemerné';
+    if (passwordStrength === 3) return 'Dobré';
+    return 'Silné';
   };
 
   return (
@@ -87,8 +87,8 @@ const Register = () => {
       <div className="max-w-md w-full bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
         <div className="text-center mb-8">
           <IluminatiLogo className="mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
-          <p className="text-blue-200">Join ILUMINATI SYSTEM today</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Vytvoriť účet</h1>
+          <p className="text-blue-200">Pripojte sa k ILUMINATI SYSTEM už dnes</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -100,7 +100,7 @@ const Register = () => {
 
           <div>
             <label htmlFor="fullName" className="block text-sm font-medium text-white mb-2">
-              Full Name
+              Celé meno
             </label>
             <input
               id="fullName"
@@ -109,7 +109,7 @@ const Register = () => {
               value={formData.fullName}
               onChange={handleChange}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="John Doe"
+              placeholder="Ján Novák"
             />
           </div>
 
@@ -125,13 +125,13 @@ const Register = () => {
               onChange={handleChange}
               required
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="your@email.com"
+              placeholder="vas@email.sk"
             />
           </div>
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-white mb-2">
-              Password
+              Heslo
             </label>
             <input
               id="password"
@@ -146,7 +146,7 @@ const Register = () => {
             {formData.password && (
               <div className="mt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-blue-200">Password strength:</span>
+                  <span className="text-xs text-blue-200">Sila hesla:</span>
                   <span className={`text-xs font-semibold ${getStrengthColor().replace('bg-', 'text-')}`}>
                     {getStrengthText()}
                   </span>
@@ -163,7 +163,7 @@ const Register = () => {
 
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-2">
-              Confirm Password
+              Potvrdenie hesla
             </label>
             <input
               id="confirmPassword"
@@ -176,7 +176,7 @@ const Register = () => {
               placeholder="••••••••"
             />
             {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-              <p className="mt-1 text-xs text-red-300">Passwords do not match</p>
+              <p className="mt-1 text-xs text-red-300">Heslá sa nezhodujú</p>
             )}
           </div>
 
@@ -188,13 +188,13 @@ const Register = () => {
               className="rounded border-white/20 text-blue-600 focus:ring-blue-500"
             />
             <label htmlFor="terms" className="ml-2 text-sm text-blue-200">
-              I agree to the{' '}
-              <Link to="/terms" className="text-blue-300 hover:text-blue-200 underline">
-                Terms of Service
+              Súhlasím s{' '}
+              <Link to="/vop" className="text-blue-300 hover:text-blue-200 underline">
+                Všeobecnými obchodnými podmienkami (VOP)
               </Link>{' '}
-              and{' '}
+              a{' '}
               <Link to="/privacy" className="text-blue-300 hover:text-blue-200 underline">
-                Privacy Policy
+                Zásadami ochrany osobných údajov
               </Link>
             </label>
           </div>
@@ -204,15 +204,15 @@ const Register = () => {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? 'Vytváranie účtu...' : 'Vytvoriť účet'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-blue-200">
-            Already have an account?{' '}
+            Už máte účet?{' '}
             <Link to="/login" className="text-blue-300 hover:text-blue-200 font-semibold">
-              Sign in
+              Prihlásiť sa
             </Link>
           </p>
         </div>

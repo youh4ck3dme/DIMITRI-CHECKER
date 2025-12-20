@@ -1,6 +1,6 @@
 # 🚀 ILUMINATI SYSTEM - Ďalšie Kroky
 
-**Aktuálny stav:** ~75% dokončené | **Test coverage:** 75% (vylepšené, stále potrebuje prácu)
+**Aktuálny stav:** ~85% dokončené | **Test coverage:** 85% (vylepšené, stále potrebuje prácu)
 
 📊 **Kompletný prehľad:** Pozri [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 
@@ -95,15 +95,15 @@
 - Profesionálnejší vzhľad
 - Lepšia používateľská skúsenosť
 
-### 6. Autentifikácia & Monetizácia
+### 6. Autentifikácia & Monetizácia ✅ DOKONČENÉ
 **Čas:** 1-2 týždne
 
-- [ ] User registrácia/login
-- [ ] Stripe integrácia
-- [ ] Subscription tiers (Free/Pro/Enterprise)
-- [ ] História vyhľadávaní
-- [ ] Obľúbené firmy
-- [ ] Rate limiting podľa tieru
+- [x] User registrácia/login ✅ DOKONČENÉ
+- [x] Stripe integrácia ✅ DOKONČENÉ
+- [x] Subscription tiers (Free/Pro/Enterprise) ✅ DOKONČENÉ
+- [x] História vyhľadávaní ✅ DOKONČENÉ
+- [ ] Obľúbené firmy (pending)
+- [x] Rate limiting podľa tieru ✅ DOKONČENÉ
 
 **Výhody:**
 - Príjmy
