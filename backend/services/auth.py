@@ -36,12 +36,13 @@ class UserTier(str, enum.Enum):
 class User(Base):
     """
     User model
-    
+
     The stripe_customer_id field links users to their Stripe customer record.
     This is critical for webhook handling - when Stripe sends subscription events,
     they include the customer ID (not email), so we need this mapping to identify
     which user's subscription was modified.
     """
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -53,7 +54,9 @@ class User(Base):
     is_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_login = Column(DateTime, nullable=True)
-    stripe_customer_id = Column(String, unique=True, index=True, nullable=True)  # Stripe customer ID for subscription management
+    stripe_customer_id = Column(
+        String, unique=True, index=True, nullable=True
+    )  # Stripe customer ID for subscription management
 
     # GDPR Consent fields
     consent_given = Column(Boolean, default=True, nullable=False)
@@ -63,10 +66,14 @@ class User(Base):
     document_versions = Column(
         String, nullable=True
     )  # JSON string with document versions
-    
+
     # Relationships
-    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
-    webhooks = relationship("Webhook", back_populates="user", cascade="all, delete-orphan")
+    api_keys = relationship(
+        "ApiKey", back_populates="user", cascade="all, delete-orphan"
+    )
+    webhooks = relationship(
+        "Webhook", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -111,14 +118,14 @@ def get_user_by_stripe_customer_id(
 ) -> Optional[User]:
     """
     Získa používateľa podľa Stripe customer ID
-    
+
     This is essential for webhook handling - Stripe sends customer IDs in events,
     not emails, so we need this to map subscription events to users.
-    
+
     Args:
         db: Database session
         stripe_customer_id: Stripe customer ID (e.g., 'cus_xxxxx')
-    
+
     Returns:
         User object if found, None otherwise
     """
