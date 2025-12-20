@@ -216,6 +216,12 @@ const Dashboard = () => {
                 >
                   Webhooks
                 </button>
+                <button
+                  onClick={() => navigate('/erp-integrations')}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition-colors"
+                >
+                  ERP Integrations
+                </button>
               </>
             )}
             {user?.tier === 'free' && (

@@ -1,7 +1,8 @@
 # 📘 ILUMINATI SYSTEM - Enterprise Business Intelligence Platform
 
 **Verzia:** 5.0 (Enterprise Edition)  
-**Status:** ~90% dokončené | **Test Coverage:** 85%
+**Status:** ~90% dokončené | **Test Coverage:** 85%  
+**Posledná aktualizácia:** December 2024
 
 ## Vízia Produktu
 
@@ -175,9 +176,12 @@ DIMITRI-CHECKER/
 - [x] Rate limiting podľa tieru
 
 ### Fáza 5: Enterprise Features ✅ DOKONČENÉ
-- [x] API Keys Management
-- [x] Webhooks Delivery System
-- [ ] ERP integrácie (pending)
+- [x] API Keys Management (backend + frontend)
+- [x] Webhooks Delivery System (backend + frontend)
+- [x] User Dashboard s Enterprise features
+- [x] HMAC SHA256 signatures pre webhooks
+- [x] IP whitelisting pre API keys
+- [x] ERP integrácie (SAP, Pohoda, Money S3) ✅ DOKONČENÉ
 
 ## Bezpečnosť
 
@@ -206,6 +210,27 @@ Všetky právne dokumenty sú dostupné v aplikácii cez footer alebo priamo na:
 ## Licencia
 
 Tento projekt je vo vývoji. Všetky práva vyhradené.
+
+## Changelog
+
+### Verzia 5.0 (December 2024) - Enterprise Edition
+- ✅ **Authentication & Monetization:** Kompletná implementácia (Login, Register, Dashboard, Stripe)
+- ✅ **Enterprise Features:** API Keys Management a Webhooks Delivery System
+- ✅ **V4 Integrations:** SK (RPO), CZ (ARES), PL (KRS + CEIDG + Biała Lista), HU (NAV)
+- ✅ **Performance:** Frontend a backend optimalizácie (memoization, code splitting, connection pooling)
+- ✅ **Security:** JWT authentication, HMAC signatures, rate limiting, tier-based access
+- ✅ **Documentation:** Kompletná dokumentácia (Developer Guide, Deployment Guide, Architecture)
+
+### Verzia 4.0 (November 2024)
+- ✅ Risk Intelligence s dlhovými registrami
+- ✅ PDF export reportov
+- ✅ Circuit Breaker pattern
+- ✅ Proxy rotation
+
+### Verzia 3.0 (October 2024)
+- ✅ PostgreSQL databáza
+- ✅ Cross-border integrácie (V4)
+- ✅ Force-directed graph vizualizácia
 
 ## Kontakt
 

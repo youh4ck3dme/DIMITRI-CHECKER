@@ -12,6 +12,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import ApiKeys from './pages/ApiKeys';
 import Webhooks from './pages/Webhooks';
+import ErpIntegrations from './pages/ErpIntegrations';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DisclaimerPage from './pages/Disclaimer';
@@ -64,6 +65,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Webhooks />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/erp-integrations"
+              element={
+                <ProtectedRoute>
+                  <ErpIntegrations />
                 </ProtectedRoute>
               }
             />

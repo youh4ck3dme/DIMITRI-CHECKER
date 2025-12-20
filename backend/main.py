@@ -1,5 +1,4 @@
 import random
-import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -9,6 +8,12 @@ from fastapi import Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
+from services.api_keys import (
+    create_api_key,
+    get_api_key_stats,
+    get_user_api_keys,
+    revoke_api_key,
+)
 from services.auth import (
     User,
     UserTier,
@@ -16,20 +21,14 @@ from services.auth import (
     create_access_token,
     create_user,
     decode_access_token,
-    get_password_hash,
     get_user_by_email,
-    get_user_by_stripe_customer_id,
     get_user_tier_limits,
-    update_user_stripe_customer_id,
-    update_user_tier,
-    verify_password,
 )
 from services.cache import get, get_cache_key, set
 from services.cache import get_stats as get_cache_stats
 from services.circuit_breaker import get_all_breakers, reset_breaker
 from services.database import (
     cleanup_expired_cache,
-    get_company_cache,
     get_database_stats,
     get_db_session,
     get_search_history,
@@ -38,8 +37,19 @@ from services.database import (
     save_company_cache,
     save_search_history,
 )
-from services.debt_registers import has_debt, search_debt_registers
-from services.error_handler import error_handler, log_error, safe_api_call
+from services.debt_registers import search_debt_registers
+from services.erp.erp_service import (
+    activate_erp_connection,
+    create_erp_connection,
+    deactivate_erp_connection,
+    get_erp_sync_logs,
+    get_supplier_payment_history_from_erp,
+    get_user_erp_connections,
+    sync_erp_data,
+    test_erp_connection,
+)
+from services.erp.models import ErpType
+from services.error_handler import error_handler
 from services.hu_nav import (
     calculate_hu_risk_score,
     fetch_nav_hu,
@@ -52,20 +62,10 @@ from services.metrics import (
     get_metrics,
     increment,
     record_event,
-    timer,
 )
-from services.performance import get_connection_pool, timing_decorator
 from services.pl_biala_lista import (
-    fetch_biala_lista_pl,
     get_vat_status_pl,
     is_polish_nip,
-    parse_biala_lista_data,
-)
-from services.pl_ceidg import (
-    calculate_ceidg_risk_score,
-    fetch_ceidg_pl,
-    is_ceidg_number,
-    parse_ceidg_data,
 )
 from services.pl_krs import (
     calculate_pl_risk_score,
@@ -74,25 +74,9 @@ from services.pl_krs import (
     parse_krs_data,
 )
 from services.proxy_rotation import get_proxy_stats, init_proxy_pool
-from services.api_keys import (
-    create_api_key,
-    get_user_api_keys,
-    revoke_api_key,
-    get_api_key_stats,
-)
-from services.webhooks import (
-    create_webhook,
-    get_user_webhooks,
-    delete_webhook,
-    get_webhook_stats,
-    get_webhook_deliveries,
-    deliver_event_to_all_webhooks,
-)
-from middleware.api_auth import verify_api_key, check_api_permission
 from services.rate_limiter import get_client_id, is_allowed
 from services.rate_limiter import get_stats as get_rate_limiter_stats
 from services.risk_intelligence import (
-    calculate_enhanced_risk_score,
     generate_risk_report,
 )
 
@@ -108,6 +92,13 @@ from services.stripe_service import (
     create_checkout_session,
     get_subscription_status,
     handle_webhook,
+)
+from services.webhooks import (
+    create_webhook,
+    delete_webhook,
+    get_user_webhooks,
+    get_webhook_deliveries,
+    get_webhook_stats,
 )
 
 app = FastAPI(
@@ -450,15 +441,20 @@ async def get_tier_limits(current_user: User = Depends(get_current_user)):
 
 class ApiKeyCreate(BaseModel):
     name: str = Field(..., description="Názov/opis API key")
-    expires_days: Optional[int] = Field(None, description="Počet dní do expirácie (None = bez expirácie)")
-    permissions: Optional[List[str]] = Field(default=["read"], description="Permissions: read, write")
-    ip_whitelist: Optional[List[str]] = Field(None, description="Zoznam povolených IP adries")
+    expires_days: Optional[int] = Field(
+        None, description="Počet dní do expirácie (None = bez expirácie)"
+    )
+    permissions: Optional[List[str]] = Field(
+        default=["read"], description="Permissions: read, write"
+    )
+    ip_whitelist: Optional[List[str]] = Field(
+        None, description="Zoznam povolených IP adries"
+    )
 
 
 @app.post("/api/enterprise/keys")
 async def generate_api_key_endpoint(
-    key_data: ApiKeyCreate,
-    current_user: User = Depends(get_current_user)
+    key_data: ApiKeyCreate, current_user: User = Depends(get_current_user)
 ):
     """
     Vytvoriť nový API key (len Enterprise tier)
@@ -467,30 +463,30 @@ async def generate_api_key_endpoint(
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="API keys are only available for Enterprise tier"
+            detail="API keys are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         result = create_api_key(
             db=db,
             user_id=current_user.id,
             name=key_data.name,
             expires_days=key_data.expires_days,
             permissions=key_data.permissions,
-            ip_whitelist=key_data.ip_whitelist
+            ip_whitelist=key_data.ip_whitelist,
         )
-        
+
         return {
             "success": True,
             "message": "API key created successfully",
             "data": result,
-            "warning": "⚠️ Save this key now! It will not be shown again."
+            "warning": "⚠️ Save this key now! It will not be shown again.",
         }
 
 
@@ -502,45 +498,51 @@ async def list_api_keys(current_user: User = Depends(get_current_user)):
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="API keys are only available for Enterprise tier"
+            detail="API keys are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         api_keys = get_user_api_keys(db, current_user.id)
-        
+
         import json
+
         result = []
         for key in api_keys:
-            result.append({
-                "id": key.id,
-                "name": key.name,
-                "prefix": key.prefix,
-                "created_at": key.created_at.isoformat(),
-                "expires_at": key.expires_at.isoformat() if key.expires_at else None,
-                "last_used_at": key.last_used_at.isoformat() if key.last_used_at else None,
-                "usage_count": key.usage_count,
-                "is_active": key.is_active,
-                "permissions": json.loads(key.permissions) if key.permissions else [],
-                "ip_whitelist": json.loads(key.ip_whitelist) if key.ip_whitelist else None
-            })
-        
-        return {
-            "success": True,
-            "keys": result,
-            "count": len(result)
-        }
+            result.append(
+                {
+                    "id": key.id,
+                    "name": key.name,
+                    "prefix": key.prefix,
+                    "created_at": key.created_at.isoformat(),
+                    "expires_at": key.expires_at.isoformat()
+                    if key.expires_at
+                    else None,
+                    "last_used_at": key.last_used_at.isoformat()
+                    if key.last_used_at
+                    else None,
+                    "usage_count": key.usage_count,
+                    "is_active": key.is_active,
+                    "permissions": json.loads(key.permissions)
+                    if key.permissions
+                    else [],
+                    "ip_whitelist": json.loads(key.ip_whitelist)
+                    if key.ip_whitelist
+                    else None,
+                }
+            )
+
+        return {"success": True, "keys": result, "count": len(result)}
 
 
 @app.delete("/api/enterprise/keys/{key_id}")
 async def revoke_api_key_endpoint(
-    key_id: int,
-    current_user: User = Depends(get_current_user)
+    key_id: int, current_user: User = Depends(get_current_user)
 ):
     """
     Zrušiť (deaktivovať) API key (len Enterprise tier)
@@ -548,34 +550,30 @@ async def revoke_api_key_endpoint(
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="API keys are only available for Enterprise tier"
+            detail="API keys are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         success = revoke_api_key(db, key_id, current_user.id)
-        
+
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="API key not found or does not belong to user"
+                detail="API key not found or does not belong to user",
             )
-        
-        return {
-            "success": True,
-            "message": "API key revoked successfully"
-        }
+
+        return {"success": True, "message": "API key revoked successfully"}
 
 
 @app.get("/api/enterprise/usage/{key_id}")
 async def get_api_key_usage(
-    key_id: int,
-    current_user: User = Depends(get_current_user)
+    key_id: int, current_user: User = Depends(get_current_user)
 ):
     """
     Získať štatistiky použitia API key (len Enterprise tier)
@@ -583,28 +581,25 @@ async def get_api_key_usage(
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="API keys are only available for Enterprise tier"
+            detail="API keys are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         stats = get_api_key_stats(db, key_id, current_user.id)
-        
+
         if not stats:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="API key not found or does not belong to user"
+                detail="API key not found or does not belong to user",
             )
-        
-        return {
-            "success": True,
-            "stats": stats
-        }
+
+        return {"success": True, "stats": stats}
 
 
 # --- WEBHOOKS ENDPOINTS ---
@@ -613,13 +608,14 @@ async def get_api_key_usage(
 class WebhookCreate(BaseModel):
     url: str = Field(..., description="Webhook URL endpoint")
     events: List[str] = Field(..., description="List of event types to subscribe to")
-    secret: Optional[str] = Field(None, description="Optional secret (will be generated if not provided)")
+    secret: Optional[str] = Field(
+        None, description="Optional secret (will be generated if not provided)"
+    )
 
 
 @app.post("/api/enterprise/webhooks")
 async def create_webhook_endpoint(
-    webhook_data: WebhookCreate,
-    current_user: User = Depends(get_current_user)
+    webhook_data: WebhookCreate, current_user: User = Depends(get_current_user)
 ):
     """
     Vytvoriť nový webhook (len Enterprise tier)
@@ -627,29 +623,29 @@ async def create_webhook_endpoint(
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Webhooks are only available for Enterprise tier"
+            detail="Webhooks are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         result = create_webhook(
             db=db,
             user_id=current_user.id,
             url=webhook_data.url,
             events=webhook_data.events,
-            secret=webhook_data.secret
+            secret=webhook_data.secret,
         )
-        
+
         return {
             "success": True,
             "message": "Webhook created successfully",
             "data": result,
-            "warning": "⚠️ Save the secret now! It will not be shown again."
+            "warning": "⚠️ Save the secret now! It will not be shown again.",
         }
 
 
@@ -661,43 +657,43 @@ async def list_webhooks(current_user: User = Depends(get_current_user)):
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Webhooks are only available for Enterprise tier"
+            detail="Webhooks are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         webhooks = get_user_webhooks(db, current_user.id)
-        
+
         import json
+
         result = []
         for webhook in webhooks:
-            result.append({
-                "id": webhook.id,
-                "url": webhook.url,
-                "events": json.loads(webhook.events),
-                "is_active": webhook.is_active,
-                "created_at": webhook.created_at.isoformat(),
-                "last_delivered_at": webhook.last_delivered_at.isoformat() if webhook.last_delivered_at else None,
-                "success_count": webhook.success_count,
-                "failure_count": webhook.failure_count
-            })
-        
-        return {
-            "success": True,
-            "webhooks": result,
-            "count": len(result)
-        }
+            result.append(
+                {
+                    "id": webhook.id,
+                    "url": webhook.url,
+                    "events": json.loads(webhook.events),
+                    "is_active": webhook.is_active,
+                    "created_at": webhook.created_at.isoformat(),
+                    "last_delivered_at": webhook.last_delivered_at.isoformat()
+                    if webhook.last_delivered_at
+                    else None,
+                    "success_count": webhook.success_count,
+                    "failure_count": webhook.failure_count,
+                }
+            )
+
+        return {"success": True, "webhooks": result, "count": len(result)}
 
 
 @app.delete("/api/enterprise/webhooks/{webhook_id}")
 async def delete_webhook_endpoint(
-    webhook_id: int,
-    current_user: User = Depends(get_current_user)
+    webhook_id: int, current_user: User = Depends(get_current_user)
 ):
     """
     Zmazať webhook (len Enterprise tier)
@@ -705,34 +701,30 @@ async def delete_webhook_endpoint(
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Webhooks are only available for Enterprise tier"
+            detail="Webhooks are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         success = delete_webhook(db, webhook_id, current_user.id)
-        
+
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Webhook not found or does not belong to user"
+                detail="Webhook not found or does not belong to user",
             )
-        
-        return {
-            "success": True,
-            "message": "Webhook deleted successfully"
-        }
+
+        return {"success": True, "message": "Webhook deleted successfully"}
 
 
 @app.get("/api/enterprise/webhooks/{webhook_id}/stats")
 async def get_webhook_stats_endpoint(
-    webhook_id: int,
-    current_user: User = Depends(get_current_user)
+    webhook_id: int, current_user: User = Depends(get_current_user)
 ):
     """
     Získať štatistiky pre webhook (len Enterprise tier)
@@ -740,35 +732,30 @@ async def get_webhook_stats_endpoint(
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Webhooks are only available for Enterprise tier"
+            detail="Webhooks are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         stats = get_webhook_stats(db, webhook_id, current_user.id)
-        
+
         if not stats:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Webhook not found or does not belong to user"
+                detail="Webhook not found or does not belong to user",
             )
-        
-        return {
-            "success": True,
-            "stats": stats
-        }
+
+        return {"success": True, "stats": stats}
 
 
 @app.get("/api/enterprise/webhooks/{webhook_id}/logs")
 async def get_webhook_logs(
-    webhook_id: int,
-    limit: int = 50,
-    current_user: User = Depends(get_current_user)
+    webhook_id: int, limit: int = 50, current_user: User = Depends(get_current_user)
 ):
     """
     Získať delivery logy pre webhook (len Enterprise tier)
@@ -776,33 +763,288 @@ async def get_webhook_logs(
     if current_user.tier != UserTier.ENTERPRISE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Webhooks are only available for Enterprise tier"
+            detail="Webhooks are only available for Enterprise tier",
         )
-    
+
     with get_db_session() as db:
         if not db:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                detail="Database not available",
             )
-        
+
         deliveries = get_webhook_deliveries(db, webhook_id, current_user.id, limit)
-        
+
         result = []
         for delivery in deliveries:
-            result.append({
-                "id": delivery.id,
-                "event_type": delivery.event_type,
-                "delivery_time": delivery.delivery_time.isoformat(),
-                "success": delivery.success,
-                "response_status": delivery.response_status,
-                "error_message": delivery.error_message
-            })
-        
+            result.append(
+                {
+                    "id": delivery.id,
+                    "event_type": delivery.event_type,
+                    "delivery_time": delivery.delivery_time.isoformat(),
+                    "success": delivery.success,
+                    "response_status": delivery.response_status,
+                    "error_message": delivery.error_message,
+                }
+            )
+
+        return {"success": True, "logs": result, "count": len(result)}
+
+
+# --- ERP INTEGRATION ENDPOINTS ---
+
+
+class ErpConnectionCreate(BaseModel):
+    erp_type: str = Field(..., description="Typ ERP systému: sap, pohoda, money_s3")
+    connection_data: Dict = Field(
+        ..., description="Connection credentials (API keys, URLs, etc.)"
+    )
+    sync_frequency: Optional[str] = Field(
+        default="daily", description="Sync frequency: daily, weekly, manual"
+    )
+
+
+@app.post("/api/enterprise/erp/connect")
+async def create_erp_connection_endpoint(
+    erp_data: ErpConnectionCreate, current_user: User = Depends(get_current_user)
+):
+    """
+    Vytvoriť nové ERP pripojenie (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ERP integrations are only available for Enterprise tier",
+        )
+
+    try:
+        erp_type = ErpType(erp_data.erp_type.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid ERP type: {erp_data.erp_type}. Must be: sap, pohoda, money_s3",
+        )
+
+    # Test pripojenia pred vytvorením
+    test_result = test_erp_connection(erp_type, erp_data.connection_data)
+    if not test_result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Connection test failed: {test_result.get('message', 'Unknown error')}",
+        )
+
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        connection = create_erp_connection(
+            db=db,
+            user_id=current_user.id,
+            erp_type=erp_type,
+            connection_data=erp_data.connection_data,
+        )
+
+        # Nastaviť sync frequency
+        connection.sync_frequency = erp_data.sync_frequency
+
+        # Aktivovať pripojenie
+        if activate_erp_connection(db, connection.id, current_user.id):
+            db.refresh(connection)
+            return {
+                "success": True,
+                "message": "ERP connection created and activated",
+                "data": connection.to_dict(),
+            }
+        else:
+            return {
+                "success": True,
+                "message": "ERP connection created but activation failed",
+                "data": connection.to_dict(),
+                "warning": "Please check your credentials",
+            }
+
+
+@app.get("/api/enterprise/erp/connections")
+async def list_erp_connections_endpoint(current_user: User = Depends(get_current_user)):
+    """
+    Získať zoznam všetkých ERP pripojení (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ERP integrations are only available for Enterprise tier",
+        )
+
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        connections = get_user_erp_connections(db, current_user.id)
+
+        result = [conn.to_dict() for conn in connections]
+
+        return {"success": True, "connections": result, "count": len(result)}
+
+
+@app.post("/api/enterprise/erp/{connection_id}/activate")
+async def activate_erp_connection_endpoint(
+    connection_id: int, current_user: User = Depends(get_current_user)
+):
+    """
+    Aktivovať ERP pripojenie (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ERP integrations are only available for Enterprise tier",
+        )
+
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        success = activate_erp_connection(db, connection_id, current_user.id)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to activate connection. Please check your credentials.",
+            )
+
+        return {"success": True, "message": "ERP connection activated successfully"}
+
+
+@app.post("/api/enterprise/erp/{connection_id}/deactivate")
+async def deactivate_erp_connection_endpoint(
+    connection_id: int, current_user: User = Depends(get_current_user)
+):
+    """
+    Deaktivovať ERP pripojenie (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ERP integrations are only available for Enterprise tier",
+        )
+
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        success = deactivate_erp_connection(db, connection_id, current_user.id)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found"
+            )
+
+        return {"success": True, "message": "ERP connection deactivated successfully"}
+
+
+@app.post("/api/enterprise/erp/{connection_id}/sync")
+async def sync_erp_data_endpoint(
+    connection_id: int,
+    sync_type: str = "incremental",
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Synchronizovať dáta z ERP (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ERP integrations are only available for Enterprise tier",
+        )
+
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        result = sync_erp_data(db, connection_id, current_user.id, sync_type)
+
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("message", "Sync failed"),
+            )
+
+        return result
+
+
+@app.get("/api/enterprise/erp/{connection_id}/logs")
+async def get_erp_sync_logs_endpoint(
+    connection_id: int, limit: int = 50, current_user: User = Depends(get_current_user)
+):
+    """
+    Získať logy synchronizácií ERP (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ERP integrations are only available for Enterprise tier",
+        )
+
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        logs = get_erp_sync_logs(db, connection_id, current_user.id, limit)
+
+        result = [log.to_dict() for log in logs]
+
+        return {"success": True, "logs": result, "count": len(result)}
+
+
+@app.get("/api/enterprise/erp/{connection_id}/supplier/{supplier_ico}/payments")
+async def get_supplier_payments_endpoint(
+    connection_id: int,
+    supplier_ico: str,
+    days: int = 365,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Získať históriu platieb dodávateľa z ERP (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ERP integrations are only available for Enterprise tier",
+        )
+
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        payments = get_supplier_payment_history_from_erp(
+            db, connection_id, current_user.id, supplier_ico, days
+        )
+
         return {
             "success": True,
-            "logs": result,
-            "count": len(result)
+            "supplier_ico": supplier_ico,
+            "payments": payments,
+            "count": len(payments),
         }
 
 
