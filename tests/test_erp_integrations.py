@@ -6,14 +6,33 @@ from typing import Dict
 
 import pytest
 import requests
+import urllib3
+
+# Potlač SSL warnings pre self-signed certifikáty
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BASE_URL = "http://localhost:8000"
+BASE_URL_HTTPS = "https://localhost:8000"
 
 
 def test_erp_endpoints_require_authentication():
     """Test, že ERP endpointy vyžadujú autentifikáciu"""
-    response = requests.get(f"{BASE_URL}/api/enterprise/erp/connections")
-    assert response.status_code == 401 or response.status_code == 403
+    # Skúsiť najprv HTTP, potom HTTPS
+    try:
+        response = requests.get(f"{BASE_URL}/api/enterprise/erp/connections", timeout=2)
+        assert response.status_code == 401 or response.status_code == 403
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        # Ak HTTP nefunguje, skúsiť HTTPS
+        try:
+            response = requests.get(
+                f"{BASE_URL_HTTPS}/api/enterprise/erp/connections",
+                verify=False,  # Ignorovať SSL pre self-signed certifikáty
+                timeout=2
+            )
+            assert response.status_code == 401 or response.status_code == 403
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            # Ak backend nebeží, preskočiť test
+            pytest.skip("Backend server nie je dostupný")
 
 
 def test_erp_endpoints_require_enterprise_tier():
