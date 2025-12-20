@@ -7,6 +7,7 @@ const Dashboard = () => {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [searchHistory, setSearchHistory] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [tierLimits, setTierLimits] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +39,17 @@ const Dashboard = () => {
       if (historyResponse.ok) {
         const history = await historyResponse.json();
         setSearchHistory(history.slice(0, 10)); // Posledných 10
+      }
+
+      // Načítať favorites
+      const favoritesResponse = await fetch('http://localhost:8000/api/user/favorites', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (favoritesResponse.ok) {
+        const favoritesData = await favoritesResponse.json();
+        setFavorites(favoritesData.favorites || []);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -192,6 +204,79 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Favorite Companies */}
+        <div className="mt-6 bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
+          <h3 className="text-xl font-bold text-white mb-4">Favorite Companies</h3>
+          {favorites.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {favorites.map((favorite) => (
+                <div
+                  key={favorite.id}
+                  className="bg-white/5 rounded-lg p-4 text-white hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="font-semibold text-lg">{favorite.company_name}</div>
+                      <div className="text-sm text-blue-200">
+                        {favorite.company_identifier} • {favorite.country}
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('access_token');
+                          const response = await fetch(
+                            `http://localhost:8000/api/user/favorites/${favorite.id}`,
+                            {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                              },
+                            }
+                          );
+                          if (response.ok) {
+                            setFavorites(favorites.filter(f => f.id !== favorite.id));
+                          }
+                        } catch (error) {
+                          console.error('Error removing favorite:', error);
+                        }
+                      }}
+                      className="text-red-400 hover:text-red-300 ml-2"
+                      title="Remove from favorites"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {favorite.risk_score !== null && (
+                    <div className="mt-2">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                        favorite.risk_score >= 7 ? 'bg-red-500/20 text-red-300' :
+                        favorite.risk_score >= 4 ? 'bg-orange-500/20 text-orange-300' :
+                        'bg-green-500/20 text-green-300'
+                      }`}>
+                        Risk: {favorite.risk_score.toFixed(1)}
+                      </span>
+                    </div>
+                  )}
+                  {favorite.notes && (
+                    <div className="mt-2 text-sm text-blue-200 italic">
+                      "{favorite.notes}"
+                    </div>
+                  )}
+                  <button
+                    onClick={() => navigate(`/?q=${favorite.company_identifier}`)}
+                    className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                  >
+                    View Details
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-blue-200">No favorite companies yet. Add companies to favorites from search results.</p>
+          )}
+        </div>
+
         {/* Quick Actions */}
         <div className="mt-6 bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
           <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
@@ -221,6 +306,12 @@ const Dashboard = () => {
                   className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition-colors"
                 >
                   ERP Integrations
+                </button>
+                <button
+                  onClick={() => navigate('/analytics')}
+                  className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-lg transition-colors"
+                >
+                  Analytics
                 </button>
               </>
             )}

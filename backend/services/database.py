@@ -111,6 +111,34 @@ class Analytics(Base):
         }
 
 
+class FavoriteCompany(Base):
+    """Obľúbené firmy používateľov"""
+
+    __tablename__ = "favorite_companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # Foreign key to users.id
+    company_identifier = Column(String(100), nullable=False, index=True)  # IČO, KRS, etc.
+    company_name = Column(String(500), nullable=False)
+    country = Column(String(2), nullable=False)
+    company_data = Column(JSON)  # Full company data snapshot
+    risk_score = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    notes = Column(Text)  # User notes about this company
+
+    def to_dict(self) -> Dict:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "company_identifier": self.company_identifier,
+            "company_name": self.company_name,
+            "country": self.country,
+            "risk_score": self.risk_score,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "notes": self.notes,
+        }
+
+
 # Database engine and session
 engine = None
 SessionLocal = None

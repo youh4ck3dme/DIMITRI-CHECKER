@@ -1,6 +1,6 @@
 # 🚀 ILUMINATI SYSTEM - Ďalšie Kroky
 
-**Aktuálny stav:** ~90% dokončené | **Test coverage:** 85% (vylepšené, stále potrebuje prácu)  
+**Aktuálny stav:** ~95% dokončené | **Test coverage:** 85% (vylepšené, stále potrebuje prácu)  
 **Posledná aktualizácia:** December 20, 2024
 
 📊 **Kompletný prehľad:** Pozri [PROJECT_STATUS.md](./PROJECT_STATUS.md)
@@ -103,7 +103,7 @@
 - [x] Stripe integrácia ✅ DOKONČENÉ
 - [x] Subscription tiers (Free/Pro/Enterprise) ✅ DOKONČENÉ
 - [x] História vyhľadávaní ✅ DOKONČENÉ
-- [ ] Obľúbené firmy (pending)
+- [x] Obľúbené firmy ✅ DOKONČENÉ
 - [x] Rate limiting podľa tieru ✅ DOKONČENÉ
 
 **Výhody:**
@@ -181,6 +181,9 @@
 - ✅ **Webhooks Delivery System:** Backend + Frontend dashboard s HMAC signatures
 - ✅ **User Dashboard:** Kompletný dashboard s Enterprise features links
 - ✅ **Stripe Integration:** Kompletná implementácia s webhook handling
+- ✅ **ERP Integrations:** SAP, Pohoda, Money S3 connectors
+- ✅ **Analytics Dashboard:** Business Intelligence s grafmi a metrikami
+- ✅ **Favorites System:** Obľúbené firmy s možnosťou pridania/odstránenia
 
 ### Performance Optimizations - 100% Dokončené
 - ✅ Frontend: React.memo, useCallback, useMemo, code splitting

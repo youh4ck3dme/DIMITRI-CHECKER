@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Search, ShieldAlert, ShieldCheck, Activity, Lock, 
   Menu, X, Globe, FileCheck, ChevronRight, 
-  Building2, Users, AlertTriangle, Loader2, Download, FileText, Moon, Sun
+  Building2, Users, AlertTriangle, Loader2, Download, FileText, Moon, Sun, Star, Heart, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
 import IluminatiLogo from '../components/IluminatiLogo';
 import ForceGraph from '../components/ForceGraph';
@@ -26,7 +26,9 @@ import SEOHead from '../components/SEOHead';
 export default function HomePageNew() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, token } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const searchInputRef = useRef(null);
   const [query, setQuery] = useState('');
   const [data, setData] = useState(null);
@@ -34,6 +36,12 @@ export default function HomePageNew() {
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    country: '',
+    minRiskScore: '',
+    maxRiskScore: '',
+  });
 
   // Load Google Fonts
   useEffect(() => {
@@ -89,14 +97,59 @@ export default function HomePageNew() {
     setShowResults(false);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/search?q=${encodeURIComponent(query)}`);
+      // Build query params with filters
+      const params = new URLSearchParams({ q: query });
+      if (filters.country) params.append('country', filters.country);
+      if (filters.minRiskScore) params.append('min_risk_score', filters.minRiskScore);
+      if (filters.maxRiskScore) params.append('max_risk_score', filters.maxRiskScore);
+      
+      const response = await fetch(`http://localhost:8000/api/search?${params.toString()}`);
       if (!response.ok) throw new Error(`Chyba pri komunikácii so serverom: ${response.status} ${response.statusText}`);
       
       const result = await response.json();
-      if (result.nodes.length === 0) {
-        setError('Nenašli sa žiadne výsledky pre zadaný dopyt.');
+      
+      // Apply client-side filtering if backend doesn't support it
+      let filteredResult = result;
+      if (result.nodes && result.nodes.length > 0) {
+        let filteredNodes = result.nodes;
+        let filteredEdges = result.edges || [];
+        
+        // Filter by country
+        if (filters.country) {
+          filteredNodes = filteredNodes.filter(n => n.country === filters.country);
+          // Keep edges where both nodes are in filtered list
+          const nodeIds = new Set(filteredNodes.map(n => n.id));
+          filteredEdges = filteredEdges.filter(e => 
+            nodeIds.has(e.source) && nodeIds.has(e.target)
+          );
+        }
+        
+        // Filter by risk score
+        if (filters.minRiskScore || filters.maxRiskScore) {
+          const minRisk = filters.minRiskScore ? parseFloat(filters.minRiskScore) : 0;
+          const maxRisk = filters.maxRiskScore ? parseFloat(filters.maxRiskScore) : 10;
+          filteredNodes = filteredNodes.filter(n => {
+            const risk = n.risk_score || 0;
+            return risk >= minRisk && risk <= maxRisk;
+          });
+          // Update edges again
+          const nodeIds = new Set(filteredNodes.map(n => n.id));
+          filteredEdges = filteredEdges.filter(e => 
+            nodeIds.has(e.source) && nodeIds.has(e.target)
+          );
+        }
+        
+        filteredResult = {
+          ...result,
+          nodes: filteredNodes,
+          edges: filteredEdges,
+        };
+      }
+      
+      if (filteredResult.nodes.length === 0) {
+        setError('Nenašli sa žiadne výsledky pre zadaný dopyt a filtre.');
       } else {
-        setData(result);
+        setData(filteredResult);
         setShowResults(true);
         // Scroll to results
         setTimeout(() => {
@@ -108,7 +161,7 @@ export default function HomePageNew() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, filters]);
 
   // Helper: Get risk score from node
   const getRiskScore = (nodes) => {
@@ -134,6 +187,35 @@ export default function HomePageNew() {
   const mainCompany = getMainCompany();
   const riskScore = data ? getRiskScore(data.nodes) : 0;
   const riskStatus = getRiskStatus(riskScore);
+
+  // Check if company is favorite
+  useEffect(() => {
+    if (data && isAuthenticated && mainCompany && token) {
+      const checkFavorite = async () => {
+        try {
+          const companyId = mainCompany.ico || mainCompany.id?.split('_')[1] || query;
+          const country = mainCompany.country || 'SK';
+          const response = await fetch(
+            `http://localhost:8000/api/user/favorites/check/${companyId}/${country}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            }
+          );
+          if (response.ok) {
+            const result = await response.json();
+            setIsFavorite(result.is_favorite);
+          }
+        } catch (error) {
+          console.error('Error checking favorite:', error);
+        }
+      };
+      checkFavorite();
+    } else {
+      setIsFavorite(false);
+    }
+  }, [data, isAuthenticated, mainCompany, query, token]);
 
   return (
     <>
@@ -284,6 +366,93 @@ export default function HomePageNew() {
                     </form>
                   )}
 
+                  {/* Advanced Search Filters */}
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                      className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors mx-auto"
+                    >
+                      <Filter size={16} />
+                      <span>Pokročilé filtre</span>
+                      {showAdvancedFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    
+                    {showAdvancedFilters && (
+                      <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Country Filter */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Krajina
+                            </label>
+                            <select
+                              value={filters.country}
+                              onChange={(e) => setFilters({...filters, country: e.target.value})}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="">Všetky krajiny</option>
+                              <option value="SK">Slovensko (SK)</option>
+                              <option value="CZ">Česká republika (CZ)</option>
+                              <option value="PL">Poľsko (PL)</option>
+                              <option value="HU">Maďarsko (HU)</option>
+                            </select>
+                          </div>
+
+                          {/* Min Risk Score */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Minimálne risk skóre
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              value={filters.minRiskScore}
+                              onChange={(e) => setFilters({...filters, minRiskScore: e.target.value})}
+                              placeholder="0"
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          {/* Max Risk Score */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Maximálne risk skóre
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              value={filters.maxRiskScore}
+                              onChange={(e) => setFilters({...filters, maxRiskScore: e.target.value})}
+                              placeholder="10"
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilters({ country: '', minRiskScore: '', maxRiskScore: '' });
+                            }}
+                            className="text-sm text-slate-600 hover:text-slate-900 underline"
+                          >
+                            Resetovať filtre
+                          </button>
+                          <div className="text-xs text-slate-500">
+                            {filters.country && `Krajina: ${filters.country} `}
+                            {filters.minRiskScore && `Min Risk: ${filters.minRiskScore} `}
+                            {filters.maxRiskScore && `Max Risk: ${filters.maxRiskScore}`}
+                            {!filters.country && !filters.minRiskScore && !filters.maxRiskScore && 'Žiadne filtre'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Error Message */}
                   {error && (
                     <div className="mt-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
@@ -411,6 +580,103 @@ export default function HomePageNew() {
                   {mainCompany?.details && (
                     <div className="mt-6 bg-blue-50 p-4 rounded text-sm text-blue-900 border border-blue-100 leading-relaxed">
                       <strong>Analytický záver:</strong> {mainCompany.details}
+                    </div>
+                  )}
+
+                  {isAuthenticated && (
+                    <div className="mt-6 pt-6 border-t border-slate-200">
+                      <button
+                        onClick={async () => {
+                          if (!isAuthenticated) {
+                            navigate('/login');
+                            return;
+                          }
+                          
+                          setFavoriteLoading(true);
+                          try {
+                            const companyId = mainCompany.ico || mainCompany.id?.split('_')[1] || query;
+                            const country = mainCompany.country || 'SK';
+                            
+                            if (isFavorite) {
+                              // Remove from favorites - need to get favorite_id first
+                              const favoritesResponse = await fetch(
+                                'http://localhost:8000/api/user/favorites',
+                                {
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                  },
+                                }
+                              );
+                              if (favoritesResponse.ok) {
+                                const favoritesData = await favoritesResponse.json();
+                                const favorite = favoritesData.favorites.find(
+                                  f => f.company_identifier === companyId && f.country === country
+                                );
+                                if (favorite) {
+                                  const deleteResponse = await fetch(
+                                    `http://localhost:8000/api/user/favorites/${favorite.id}`,
+                                    {
+                                      method: 'DELETE',
+                                      headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                      },
+                                    }
+                                  );
+                                  if (deleteResponse.ok) {
+                                    setIsFavorite(false);
+                                  }
+                                }
+                              }
+                            } else {
+                              // Add to favorites
+                              const response = await fetch(
+                                'http://localhost:8000/api/user/favorites',
+                                {
+                                  method: 'POST',
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    company_identifier: companyId,
+                                    company_name: mainCompany.label || 'Unknown',
+                                    country: country,
+                                    company_data: mainCompany,
+                                    risk_score: riskScore > 0 ? riskScore : null,
+                                  }),
+                                }
+                              );
+                              if (response.ok) {
+                                setIsFavorite(true);
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error toggling favorite:', error);
+                          } finally {
+                            setFavoriteLoading(false);
+                          }
+                        }}
+                        disabled={favoriteLoading}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+                          isFavorite
+                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {favoriteLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : isFavorite ? (
+                          <>
+                            <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                            Remove from Favorites
+                          </>
+                        ) : (
+                          <>
+                            <Star className="w-4 h-4" />
+                            Add to Favorites
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>

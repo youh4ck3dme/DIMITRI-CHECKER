@@ -1,7 +1,7 @@
 # 📘 ILUMINATI SYSTEM - Enterprise Business Intelligence Platform
 
 **Verzia:** 5.0 (Enterprise Edition)  
-**Status:** ~90% dokončené | **Test Coverage:** 85%  
+**Status:** ~95% dokončené | **Test Coverage:** 85%  
 **Posledná aktualizácia:** December 2024
 
 ## Vízia Produktu
@@ -138,9 +138,9 @@ DIMITRI-CHECKER/
 - **Footer:** Footer s linkmi na všetky právne dokumenty dostupný na každej stránke
 - **Disclaimer:** Automatické zobrazenie disclaimeru pod každým grafom
 - **Authentication:** Login/Register s JWT tokens
-- **User Dashboard:** Tier management, search history, usage statistics
+- **User Dashboard:** Tier management, search history, usage statistics, favorite companies
 - **Payment Integration:** Stripe checkout pre subscription upgrades
-- **Enterprise Features:** API Keys Management, Webhooks Delivery System
+- **Enterprise Features:** API Keys Management, Webhooks Delivery System, ERP Integrations, Analytics Dashboard
 - **Performance:** React.memo, useCallback, useMemo, code splitting
 - **Offline Support:** Service Worker, PWA capabilities
 
@@ -174,6 +174,7 @@ DIMITRI-CHECKER/
 - [x] Subscription tiers: Free/Pro/Enterprise
 - [x] User Dashboard
 - [x] Rate limiting podľa tieru
+- [x] Obľúbené firmy (Favorites) ✅ DOKONČENÉ
 
 ### Fáza 5: Enterprise Features ✅ DOKONČENÉ
 - [x] API Keys Management (backend + frontend)
@@ -182,6 +183,7 @@ DIMITRI-CHECKER/
 - [x] HMAC SHA256 signatures pre webhooks
 - [x] IP whitelisting pre API keys
 - [x] ERP integrácie (SAP, Pohoda, Money S3) ✅ DOKONČENÉ
+- [x] Analytics Dashboard (backend + frontend) ✅ DOKONČENÉ
 
 ## Bezpečnosť
 

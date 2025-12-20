@@ -1,6 +1,6 @@
 # 🗺️ ILUMINATI SYSTEM - Roadmapa & Blueprint
 
-**Aktuálny stav:** ~90% dokončené | **Test coverage:** 85%  
+**Aktuálny stav:** ~95% dokončené | **Test coverage:** 85%  
 **Posledná aktualizácia:** December 20, 2024
 
 ---
@@ -17,7 +17,7 @@
 | Documentation | 100% | ✅ Hotovo |
 | Testing | 85% | ✅ Vylepšené |
 | **Authentication & Monetization** | **100%** | ✅ **Hotovo** |
-| Enterprise Features | **100%** | ✅ **Hotovo (API Keys + Webhooks)** |
+| Enterprise Features | **100%** | ✅ **Hotovo (API Keys + Webhooks + ERP + Analytics)** |
 
 ---
 
@@ -374,38 +374,40 @@ GET /api/enterprise/erp/logs
 - Rate limiting
 ```
 
-### 6.4 Advanced Analytics
+### 6.4 Advanced Analytics ✅ DOKONČENÉ
 
 #### Blueprint: Analytics Dashboard
-**Súbor:** `frontend/src/pages/Analytics.jsx`
+**Súbor:** `frontend/src/pages/Analytics.jsx` ✅ IMPLEMENTOVANÉ
 
 ```jsx
 // Grafy a metriky:
-1. Search Trends
+1. Search Trends ✅
    - Searches per day/week/month
    - Peak hours
    - Popular countries
 
-2. Risk Distribution
+2. Risk Distribution ✅
    - Risk score distribution
    - High-risk companies count
    - Risk trends over time
 
-3. User Activity
+3. User Activity ✅
    - Active users
    - Retention rate
    - Feature usage
 
-4. API Usage
+4. API Usage ✅
    - API calls per day
    - Most used endpoints
    - Error rate
 
-// Charts library: Chart.js alebo Recharts
-// API endpoint:
+// Charts library: Recharts ✅ IMPLEMENTOVANÉ
+// API endpoints: ✅ IMPLEMENTOVANÉ
 GET /api/analytics/dashboard
 GET /api/analytics/search-trends
 GET /api/analytics/risk-distribution
+GET /api/analytics/user-activity
+GET /api/analytics/api-usage
 ```
 
 ---
@@ -420,7 +422,7 @@ GET /api/analytics/risk-distribution
 - [ ] ESLint konfigurácia (migrácia na ESLint 9)
 - [ ] Accessibility (ARIA labels, keyboard navigation)
 - [ ] Internationalization (i18n) - SK, CZ, PL, HU, EN
-- [ ] Advanced search filters (date range, country, risk score)
+- [x] Advanced search filters (country, risk score) ✅ DOKONČENÉ
 - [ ] Export improvements (Excel, CSV s formátovaním)
 - [ ] Graph improvements (3D view, custom layouts)
 
@@ -545,8 +547,8 @@ GET /api/analytics/risk-distribution
 ### Enterprise Features
 - [x] API Keys management funkčný ✅ DOKONČENÉ
 - [x] Webhooks delivery system funkčný ✅ DOKONČENÉ
-- [ ] Minimálne 1 ERP connector (Pohoda) (pending)
-- [ ] Analytics dashboard základný (pending)
+- [x] ERP connectors (SAP, Pohoda, Money S3) ✅ DOKONČENÉ
+- [x] Analytics dashboard základný ✅ DOKONČENÉ
 
 ### Kvalita
 - [x] Test coverage 85% (cieľ 90%) ⚠️ Vylepšuje sa

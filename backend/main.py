@@ -48,6 +48,20 @@ from services.erp.erp_service import (
     sync_erp_data,
     test_erp_connection,
 )
+from services.analytics import (
+    get_dashboard_summary,
+    get_search_trends,
+    get_risk_distribution,
+    get_user_activity,
+    get_api_usage,
+)
+from services.favorites import (
+    add_favorite,
+    remove_favorite,
+    get_user_favorites,
+    is_favorite,
+    update_favorite_notes,
+)
 from services.erp.models import ErpType
 from services.error_handler import error_handler
 from services.hu_nav import (
@@ -200,6 +214,39 @@ class UserResponse(BaseModel):
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
+def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    """Získa aktuálneho používateľa z tokenu"""
+    payload = decode_access_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    email: str = payload.get("sub")
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    with get_db_session() as db:
+        if db is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+        user = get_user_by_email(db, email)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return user
+
+
 # --- SLUŽBY (ARES INTEGRÁCIA) ---
 def fetch_ares_cz(query: str):
     """
@@ -242,7 +289,29 @@ def read_root():
     return {
         "status": "ILUMINATI SYSTEM API Running",
         "version": "5.0",
-        "features": ["CZ (ARES)", "SK (RPO)", "Cache", "Risk Scoring"],
+        "features": [
+            "CZ (ARES)",
+            "SK (RPO)",
+            "PL (KRS)",
+            "HU (NAV)",
+            "Cache",
+            "Risk Scoring",
+            "Authentication",
+            "Stripe Integration",
+            "API Keys Management",
+            "Webhooks",
+            "ERP Integrations",
+            "Analytics Dashboard",
+            "Favorites System"
+        ],
+        "endpoints": {
+            "health": "/api/health",
+            "docs": "/docs",
+            "search": "/api/search",
+            "auth": "/api/auth",
+            "enterprise": "/api/enterprise",
+            "analytics": "/api/analytics"
+        }
     }
 
 
@@ -268,6 +337,160 @@ async def database_stats():
 async def search_history(limit: int = 100, country: Optional[str] = None):
     """Vráti históriu vyhľadávaní"""
     return get_search_history(limit=limit, country=country)
+
+
+# --- FAVORITES ENDPOINTY ---
+
+
+@app.post("/api/user/favorites")
+async def add_favorite_company(
+    request: Dict,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Pridá firmu do obľúbených (len pre prihlásených používateľov)
+    
+    Body:
+        {
+            "company_identifier": "12345678",
+            "company_name": "Firma s.r.o.",
+            "country": "SK",
+            "company_data": {...},  # optional
+            "risk_score": 5.0,  # optional
+            "notes": "Moja poznámka"  # optional
+        }
+    """
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        favorite = add_favorite(
+            db=db,
+            user_id=current_user.id,
+            company_identifier=request.get("company_identifier"),
+            company_name=request.get("company_name"),
+            country=request.get("country"),
+            company_data=request.get("company_data"),
+            risk_score=request.get("risk_score"),
+            notes=request.get("notes"),
+        )
+
+        return {"success": True, "favorite": favorite.to_dict()}
+
+
+@app.get("/api/user/favorites")
+async def get_favorites(
+    limit: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Získa zoznam obľúbených firiem používateľa
+    """
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        favorites = get_user_favorites(db=db, user_id=current_user.id, limit=limit)
+        return {
+            "success": True,
+            "favorites": [f.to_dict() for f in favorites],
+            "count": len(favorites),
+        }
+
+
+@app.delete("/api/user/favorites/{favorite_id}")
+async def remove_favorite_company(
+    favorite_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Odstráni firmu z obľúbených
+    """
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        success = remove_favorite(db=db, user_id=current_user.id, favorite_id=favorite_id)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Favorite not found",
+            )
+
+        return {"success": True, "message": "Favorite removed"}
+
+
+@app.get("/api/user/favorites/check/{company_identifier}/{country}")
+async def check_is_favorite(
+    company_identifier: str,
+    country: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Skontroluje, či je firma v obľúbených
+    """
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        is_fav = is_favorite(
+            db=db,
+            user_id=current_user.id,
+            company_identifier=company_identifier,
+            country=country,
+        )
+
+        return {"success": True, "is_favorite": is_fav}
+
+
+@app.put("/api/user/favorites/{favorite_id}/notes")
+async def update_favorite_notes(
+    favorite_id: int,
+    request: Dict,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Aktualizuje poznámky k obľúbenej firme
+    
+    Body:
+        {
+            "notes": "Nová poznámka"
+        }
+    """
+    with get_db_session() as db:
+        if not db:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not available",
+            )
+
+        favorite = update_favorite_notes(
+            db=db,
+            user_id=current_user.id,
+            favorite_id=favorite_id,
+            notes=request.get("notes", ""),
+        )
+
+        if not favorite:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Favorite not found",
+            )
+
+        return {"success": True, "favorite": favorite.to_dict()}
 
 
 @app.get("/api/circuit-breaker/stats")
@@ -296,39 +519,6 @@ async def proxy_stats():
 
 
 # --- AUTH ENDPOINTY ---
-
-
-def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
-    """Získa aktuálneho používateľa z tokenu"""
-    payload = decode_access_token(token)
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    email: str = payload.get("sub")
-    if email is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    with get_db_session() as db:
-        if db is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available",
-            )
-        user = get_user_by_email(db, email)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return user
 
 
 @app.post("/api/auth/register", response_model=UserResponse)
@@ -1046,6 +1236,142 @@ async def get_supplier_payments_endpoint(
             "payments": payments,
             "count": len(payments),
         }
+
+
+# --- ANALYTICS ENDPOINTY ---
+
+
+@app.get("/api/analytics/dashboard")
+async def get_analytics_dashboard(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Získať kompletný analytics dashboard (len Enterprise tier)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Analytics dashboard is only available for Enterprise tier",
+        )
+
+    try:
+        summary = get_dashboard_summary()
+        return {"success": True, "data": summary}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching analytics: {str(e)}",
+        )
+
+
+@app.get("/api/analytics/search-trends")
+async def get_analytics_search_trends(
+    days: int = 30,
+    group_by: str = "day",
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Získať trendy vyhľadávaní (len Enterprise tier)
+    
+    Args:
+        days: Počet dní späť (default: 30)
+        group_by: Agregácia - day, week, month (default: day)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Analytics are only available for Enterprise tier",
+        )
+
+    try:
+        trends = get_search_trends(days=days, group_by=group_by, user_id=current_user.id)
+        return {"success": True, "data": trends}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching search trends: {str(e)}",
+        )
+
+
+@app.get("/api/analytics/risk-distribution")
+async def get_analytics_risk_distribution(
+    days: int = 30,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Získať distribúciu risk skóre (len Enterprise tier)
+    
+    Args:
+        days: Počet dní späť (default: 30)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Analytics are only available for Enterprise tier",
+        )
+
+    try:
+        distribution = get_risk_distribution(days=days, user_id=current_user.id)
+        return {"success": True, "data": distribution}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching risk distribution: {str(e)}",
+        )
+
+
+@app.get("/api/analytics/user-activity")
+async def get_analytics_user_activity(
+    days: int = 30,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Získať aktivitu používateľov (len Enterprise tier)
+    
+    Args:
+        days: Počet dní späť (default: 30)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Analytics are only available for Enterprise tier",
+        )
+
+    try:
+        activity = get_user_activity(days=days)
+        return {"success": True, "data": activity}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching user activity: {str(e)}",
+        )
+
+
+@app.get("/api/analytics/api-usage")
+async def get_analytics_api_usage(
+    days: int = 30,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Získať štatistiky API použitia (len Enterprise tier)
+    
+    Args:
+        days: Počet dní späť (default: 30)
+    """
+    if current_user.tier != UserTier.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Analytics are only available for Enterprise tier",
+        )
+
+    try:
+        usage = get_api_usage(days=days)
+        return {"success": True, "data": usage}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching API usage: {str(e)}",
+        )
 
 
 # --- STRIPE ENDPOINTY ---

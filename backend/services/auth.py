@@ -12,7 +12,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, relationship
 
 from services.database import Base
 
