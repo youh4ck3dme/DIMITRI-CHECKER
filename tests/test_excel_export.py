@@ -10,7 +10,7 @@ import urllib3
 
 # Skúsiť importovať openpyxl
 try:
-    from openpyxl import load_workbook
+    from openpyxl import load_workbook  # type: ignore[reportMissingModuleSource]
 
     OPENPYXL_AVAILABLE = True
 except ImportError:
@@ -29,11 +29,11 @@ def get_base_url():
     try:
         requests.get(f"{BASE_URL_HTTPS}/api/health", verify=False, timeout=2)
         return BASE_URL_HTTPS
-    except:
+    except Exception:
         try:
             requests.get(f"{BASE_URL}/api/health", timeout=2)
             return BASE_URL
-        except:
+        except Exception:
             pytest.skip("Backend server nie je dostupný")
 
 
@@ -118,6 +118,8 @@ def test_excel_export_creates_valid_file():
         assert len(excel_bytes) > 0
 
         # Skúsiť načítať pomocou openpyxl
+        if load_workbook is None:
+            pytest.skip("openpyxl nie je nainštalovaný")
         workbook = load_workbook(io.BytesIO(excel_bytes))
         assert workbook is not None
         assert len(workbook.sheetnames) > 0
@@ -167,6 +169,8 @@ def test_batch_excel_export_creates_valid_file():
         assert len(excel_bytes) > 0
 
         # Skúsiť načítať pomocou openpyxl
+        if load_workbook is None:
+            pytest.skip("openpyxl nie je nainštalovaný")
         workbook = load_workbook(io.BytesIO(excel_bytes))
         assert workbook is not None
         assert len(workbook.sheetnames) > 0

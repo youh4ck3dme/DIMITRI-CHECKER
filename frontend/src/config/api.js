@@ -8,7 +8,7 @@ const isHTTPS = window.location.protocol === 'https:';
 
 // API URL - automaticky používa HTTPS, ak je frontend na HTTPS
 const getApiUrl = () => {
-  const apiUrl = process.env.REACT_APP_API_URL;
+  const apiUrl = import.meta.env.VITE_API_URL;
   
   if (apiUrl) {
     return apiUrl;

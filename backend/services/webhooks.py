@@ -132,22 +132,30 @@ def delete_webhook(db: Session, webhook_id: int, user_id: int) -> bool:
     return True
 
 
-def generate_webhook_signature(payload: str, secret: str) -> str:
+def generate_webhook_signature(payload: dict | str, secret: str) -> str:
     """
     Generovať HMAC SHA256 signature pre webhook payload.
     
     Args:
-        payload: JSON string payload
+        payload: Dict alebo JSON string payload
         secret: Webhook secret
         
     Returns:
-        HMAC signature (hex)
+        HMAC signature s prefixom 'sha256=' (hex)
     """
-    return hmac.new(
+    if isinstance(payload, dict):
+        import json
+        payload_str = json.dumps(payload, separators=(',', ':'))
+    else:
+        payload_str = payload
+    
+    signature = hmac.new(
         secret.encode('utf-8'),
-        payload.encode('utf-8'),
+        payload_str.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
+    
+    return f"sha256={signature}"
 
 
 async def deliver_webhook(webhook: Webhook, event_type: str, payload: Dict[str, Any]) -> bool:

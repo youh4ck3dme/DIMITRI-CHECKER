@@ -70,25 +70,27 @@ def get(key: str) -> Optional[Any]:
     return value
 
 
-def set(key: str, value: Any, ttl: Optional[timedelta] = None) -> None:
+def set(key: str, value: Any, ttl: Optional[timedelta | int] = None) -> None:
     """
     Uloží hodnotu do cache (Redis aj in-memory fallback).
 
     Args:
         key: Cache key
         value: Hodnota na uloženie
-        ttl: Time to live (ak None, použije sa default)
+        ttl: Time to live (timedelta alebo sekundy ako int, ak None, použije sa default)
     """
     if ttl is None:
-        ttl = _default_ttl
+        ttl_delta = _default_ttl
+    elif isinstance(ttl, int):
+        ttl_delta = timedelta(seconds=ttl)
+    else:
+        ttl_delta = ttl
 
-    # Skúsiť Redis najprv
     if REDIS_ENABLED and _redis_set:
-        ttl_seconds = int(ttl.total_seconds())
+        ttl_seconds = int(ttl_delta.total_seconds())
         _redis_set(key, value, ttl_seconds)
 
-    # Vždy uložiť aj do in-memory (backup)
-    expiry_time = datetime.now() + ttl
+    expiry_time = datetime.now() + ttl_delta
     _cache[key] = (value, expiry_time)
 
 

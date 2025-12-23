@@ -5,8 +5,6 @@
 import os
 import sys
 
-import pytest
-
 # Pridať frontend do path pre import
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "src")
 if frontend_path not in sys.path:
@@ -28,13 +26,14 @@ def test_api_url_uses_environment_variable():
     api_config_path = os.path.join(
         os.path.dirname(__file__), "..", "frontend", "src", "config", "api.js"
     )
-    
+
     if os.path.exists(api_config_path):
         with open(api_config_path, "r") as f:
             content = f.read()
             # Skontrolovať, či obsahuje REACT_APP_API_URL
-            assert "REACT_APP_API_URL" in content or "process.env" in content, \
+            assert "REACT_APP_API_URL" in content or "process.env" in content, (
                 "API konfigurácia by mala používať environment variables"
+            )
 
 
 def test_api_url_auto_detects_https():
@@ -42,13 +41,14 @@ def test_api_url_auto_detects_https():
     api_config_path = os.path.join(
         os.path.dirname(__file__), "..", "frontend", "src", "config", "api.js"
     )
-    
+
     if os.path.exists(api_config_path):
         with open(api_config_path, "r") as f:
             content = f.read()
             # Skontrolovať, či obsahuje HTTPS detekciu
-            assert "https://" in content or "window.location.protocol" in content, \
+            assert "https://" in content or "window.location.protocol" in content, (
                 "API konfigurácia by mala podporovať HTTPS auto-detection"
+            )
 
 
 def test_api_url_fallback_to_http():
@@ -56,11 +56,9 @@ def test_api_url_fallback_to_http():
     api_config_path = os.path.join(
         os.path.dirname(__file__), "..", "frontend", "src", "config", "api.js"
     )
-    
+
     if os.path.exists(api_config_path):
         with open(api_config_path, "r") as f:
             content = f.read()
             # Skontrolovať, či obsahuje HTTP fallback
-            assert "http://" in content, \
-                "API konfigurácia by mala mať HTTP fallback"
-
+            assert "http://" in content, "API konfigurácia by mala mať HTTP fallback"

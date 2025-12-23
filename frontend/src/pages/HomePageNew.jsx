@@ -266,7 +266,7 @@ export default function HomePageNew() {
             </button>
             {isAuthenticated ? (
               <button 
-                className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
+                className="px-6 py-2.5 bg-[#0B4EA2] text-white hover:bg-blue-800 transition-colors font-bold text-sm rounded-md shadow-sm flex items-center gap-2"
                 onClick={() => navigate('/dashboard')}
               >
                 <Lock size={14} />
@@ -274,7 +274,7 @@ export default function HomePageNew() {
               </button>
             ) : (
               <button 
-                className="px-6 py-2.5 slovak-blue-bg text-white hover:bg-blue-800 transition-colors font-medium text-sm rounded-md shadow-sm flex items-center gap-2"
+                className="px-6 py-2.5 bg-[#0B4EA2] text-white hover:bg-blue-800 transition-colors font-bold text-sm rounded-md shadow-sm flex items-center gap-2"
                 onClick={() => navigate('/login')}
               >
                 <Lock size={14} />
@@ -311,7 +311,7 @@ export default function HomePageNew() {
             <div className="bg-white border-b border-slate-100">
               <div className="max-w-7xl mx-auto px-6 py-24 text-center">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-800 text-xs font-semibold mb-8 uppercase tracking-wide">
-                  <span className="w-2 h-2 rounded-full slovak-blue-bg"></span>
+                  <span className="w-2 h-2 rounded-full bg-[#0B4EA2]"></span>
                   Oficiálny register obchodných vzťahov V4
                 </div>
                 
@@ -350,7 +350,7 @@ export default function HomePageNew() {
                       <button 
                         type="submit"
                         disabled={loading}
-                        className="slovak-blue-bg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-8 py-4 md:py-0 rounded-md transition-all flex items-center justify-center gap-2 shadow-sm"
+                        className="bg-[#0B4EA2] hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-8 py-4 md:py-0 rounded-md transition-all flex items-center justify-center gap-2 shadow-sm"
                       >
                         {loading ? (
                           <>

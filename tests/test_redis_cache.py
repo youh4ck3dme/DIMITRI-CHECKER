@@ -62,7 +62,7 @@ def test_redis_get_set_delete():
         # Test set
         test_key = "test_key_12345"
         test_value = {"test": "data", "number": 42}
-        redis_set(test_key, test_value, ttl_seconds=60)
+        redis_set(test_key, test_value, ttl=60)
 
         # Test get
         retrieved = redis_get(test_key)
@@ -95,7 +95,7 @@ def test_redis_get_stats():
 def test_redis_cache_integration():
     """Test, či cache.py používa Redis (ak je dostupný)"""
     try:
-        from backend.services.cache import get, get_stats, set
+        from backend.services.cache import get, set
 
         # Test, či cache funkcie fungujú
         test_key = "test_cache_key_12345"
@@ -119,7 +119,7 @@ def test_redis_cache_integration():
 def test_redis_fallback_to_memory():
     """Test, či cache fallbackuje na in-memory, ak Redis nie je dostupný"""
     try:
-        from backend.services.cache import get, get_stats, set
+        from backend.services.cache import get, set
 
         # Test, či cache funguje aj bez Redis
         test_key = "test_fallback_key_12345"

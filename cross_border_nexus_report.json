@@ -1,0 +1,140 @@
+{
+  "timestamp": "2025-12-23T03:18:13.384087",
+  "tests": [
+    {
+      "ico": "52500888",
+      "name": "Test SK 1",
+      "expected_country": "SK",
+      "timestamp": "2025-12-23T03:18:13.400372",
+      "steps": [
+        {
+          "step": "country_detection",
+          "result": "SK",
+          "status": "✅"
+        },
+        {
+          "step": "api_call",
+          "status_code": 200,
+          "status": "✅"
+        },
+        {
+          "step": "data_validation",
+          "validation": {
+            "required": {
+              "name": false,
+              "ico": false,
+              "country": false
+            },
+            "optional": {
+              "address": false,
+              "status": false,
+              "legal_form": false,
+              "registration_date": false
+            }
+          },
+          "status": "❌"
+        },
+        {
+          "step": "cross_border_check",
+          "countries": [],
+          "is_cross_border": false,
+          "status": "✅"
+        }
+      ],
+      "detected_country": "SK",
+      "status": "PASSED"
+    },
+    {
+      "ico": "53059417",
+      "name": "Test SK 2",
+      "expected_country": "SK",
+      "timestamp": "2025-12-23T03:18:14.070049",
+      "steps": [
+        {
+          "step": "country_detection",
+          "result": "SK",
+          "status": "✅"
+        },
+        {
+          "step": "api_call",
+          "status_code": 200,
+          "status": "✅"
+        },
+        {
+          "step": "data_validation",
+          "validation": {
+            "required": {
+              "name": false,
+              "ico": false,
+              "country": false
+            },
+            "optional": {
+              "address": false,
+              "status": false,
+              "legal_form": false,
+              "registration_date": false
+            }
+          },
+          "status": "❌"
+        },
+        {
+          "step": "cross_border_check",
+          "countries": [],
+          "is_cross_border": false,
+          "status": "✅"
+        }
+      ],
+      "detected_country": "SK",
+      "status": "PASSED"
+    },
+    {
+      "ico": "10663037",
+      "name": "Test CZ/SK",
+      "expected_country": "CZ",
+      "timestamp": "2025-12-23T03:18:14.352794",
+      "steps": [
+        {
+          "step": "country_detection",
+          "result": "SK",
+          "status": "⚠️"
+        },
+        {
+          "step": "api_call",
+          "status_code": 200,
+          "status": "✅"
+        },
+        {
+          "step": "data_validation",
+          "validation": {
+            "required": {
+              "name": false,
+              "ico": false,
+              "country": false
+            },
+            "optional": {
+              "address": false,
+              "status": false,
+              "legal_form": false,
+              "registration_date": false
+            }
+          },
+          "status": "❌"
+        },
+        {
+          "step": "cross_border_check",
+          "countries": [],
+          "is_cross_border": false,
+          "status": "✅"
+        }
+      ],
+      "detected_country": "SK",
+      "status": "PASSED"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "warnings": 0
+  }
+}

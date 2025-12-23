@@ -57,10 +57,6 @@ def test_orsr_provider_normalizes_ico():
     """Test, či ORSR provider normalizuje IČO (odstráni medzery)"""
     provider = get_orsr_provider()
 
-    # IČO s medzerami
-    ico_with_spaces = "52 374 220"
-    ico_clean = "52374220"
-
     # Provider by mal normalizovať IČO
     # (test závisí od implementácie normalizácie)
     assert provider is not None  # Základný test

@@ -77,12 +77,18 @@ class User(Base):
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Overí heslo"""
+    """Overí heslo (max 72 bytes pre bcrypt)"""
+    password_bytes = plain_password.encode('utf-8')
+    if len(password_bytes) > 72:
+        plain_password = password_bytes[:72].decode('utf-8', errors='ignore')
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    """Hashuje heslo"""
+    """Hashuje heslo (max 72 bytes pre bcrypt)"""
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        password = password_bytes[:72].decode('utf-8', errors='ignore')
     return pwd_context.hash(password)
 
 

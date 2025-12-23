@@ -2,9 +2,10 @@
 Špeciálne testy pre Region resolver (PSČ → Kraj/Okres)
 """
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Pridať backend do path
 backend_path = os.path.join(os.path.dirname(__file__), "..", "backend")

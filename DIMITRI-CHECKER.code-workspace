@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../PSC-2025"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.css": "tailwindcss"
+		},
+		"ruff.enable": true,
+		"ruff.organizeImports": true
+	}
+}

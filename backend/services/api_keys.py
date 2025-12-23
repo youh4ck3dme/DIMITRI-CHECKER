@@ -34,22 +34,19 @@ class ApiKey(Base):
     user = relationship("User", back_populates="api_keys")
 
 
-def generate_api_key(prefix: str = "il") -> tuple[str, str]:
+def generate_api_key(prefix: str = "ilmn") -> tuple[str, str]:
     """
     Generovať nový API key.
     
     Args:
-        prefix: Prefix pre key (default: "il")
+        prefix: Prefix pre key (default: "ilmn" - iluminati)
         
     Returns:
         Tuple (full_key, key_hash)
     """
-    # Generovať 32-byte random string
-    random_bytes = secrets.token_bytes(32)
     key_suffix = secrets.token_urlsafe(32)
     full_key = f"{prefix}_{key_suffix}"
     
-    # Hash key pre bezpečné uloženie
     key_hash = hashlib.sha256(full_key.encode()).hexdigest()
     
     return full_key, key_hash

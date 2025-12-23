@@ -2,7 +2,6 @@
 Špeciálne testy pre SSL/HTTPS funkcionalitu
 """
 
-import os
 from pathlib import Path
 
 import pytest
