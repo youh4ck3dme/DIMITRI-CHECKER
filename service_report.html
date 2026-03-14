@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIMITRI-CHECKER - Report Funkčnosti Služieb</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #0B4EA2 0%, #1a73e8 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        header p { opacity: 0.9; font-size: 1.1em; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 40px;
+            background: #f8f9fa;
+        }
+        .stat-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 5px solid #0B4EA2;
+        }
+        .stat-card.passed { border-left-color: #10b981; }
+        .stat-card.failed { border-left-color: #ef4444; }
+        .stat-card.skipped { border-left-color: #f59e0b; }
+        .stat-number {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .progress-section {
+            padding: 40px;
+        }
+        .progress-bar {
+            background: #e5e7eb;
+            height: 40px;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: width 1s ease;
+        }
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            padding: 40px;
+        }
+        .service-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .service-card.passed { border-left: 5px solid #10b981; }
+        .service-card.failed { border-left: 5px solid #ef4444; }
+        .service-card.skipped { border-left: 5px solid #f59e0b; }
+        .service-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+        .badge.passed { background: #d1fae5; color: #065f46; }
+        .badge.failed { background: #fee2e2; color: #991b1b; }
+        .badge.skipped { background: #fef3c7; color: #92400e; }
+        .category-section {
+            padding: 40px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .category-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #0B4EA2;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #374151;
+        }
+        .priority-high { color: #ef4444; font-weight: bold; }
+        .priority-medium { color: #f59e0b; font-weight: bold; }
+        .priority-low { color: #10b981; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 DIMITRI-CHECKER</h1>
+            <p>Report Funkčnosti Služieb</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">Verzia 5.0 Enterprise Edition | 2025-12-23</p>
+        </header>
+
+        <div class="stats">
+            <div class="stat-card passed">
+                <div class="stat-label">Funkčné</div>
+                <div class="stat-number">18</div>
+                <div class="stat-label">54.5%</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-label">Chybné</div>
+                <div class="stat-number">9</div>
+                <div class="stat-label">27.3%</div>
+            </div>
+            <div class="stat-card skipped">
+                <div class="stat-label">Preskočené</div>
+                <div class="stat-number">6</div>
+                <div class="stat-label">18.2%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Celková Funkčnosť</div>
+                <div class="stat-number">66.7%</div>
+                <div class="stat-label">Bez preskočených</div>
+            </div>
+        </div>
+
+        <div class="progress-section">
+            <h2 style="margin-bottom: 10px;">Celkový Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 66.7%;">66.7%</div>
+            </div>
+            <p style="text-align: center; color: #6b7280;">Cieľ: 95%+ funkčnosť</p>
+        </div>
+
+        <div class="services-grid">
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>Export Service</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">Excel, CSV, JSON export</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>Rate Limiter</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">Token bucket, tier limits</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>Redis Cache</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">Distributed cache s fallback</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>SK Region Resolver</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">3342 PSČ → Kraj mapping</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>SK ORSR Provider</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">🇸🇰 Live scraping ORSR.sk</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>PL KRS Provider</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">🇵🇱 Polish company registry</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>PL CEIDG Provider</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">🇵🇱 Sole proprietors</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>PL Biała Lista</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">🇵🇱 VAT validation</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>HU NAV Provider</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">🇭🇺 Hungarian tax registry</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>Pohoda Connector</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">ERP: Pohoda (SK)</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>SAP Connector</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">ERP: SAP Business One</p>
+            </div>
+
+            <div class="service-card passed">
+                <div class="service-title">
+                    <span>✅</span>
+                    <span>Money S3 Connector</span>
+                    <span class="badge passed">100%</span>
+                </div>
+                <p style="font-size: 0.9em; color: #6b7280;">ERP: Money S3 (CZ)</p>
+            </div>
+
+            <div class="service-card failed">
+                <div class="service-title">
+                    <span>❌</span>
+                    <span>Auth Service</span>
+                    <span class="badge failed">ERROR</span>
+                </div>
+                <p style="font-size: 0.9em; color: #ef4444;">bcrypt password length limit</p>
+            </div>
+
+            <div class="service-card failed">
+                <div class="service-title">
+                    <span>❌</span>
+                    <span>API Keys Service</span>
+                    <span class="badge failed">ERROR</span>
+                </div>
+                <p style="font-size: 0.9em; color: #ef4444;">Key length requirement</p>
+            </div>
+
+            <div class="service-card failed">
+                <div class="service-title">
+                    <span>❌</span>
+                    <span>Webhooks Service</span>
+                    <span class="badge failed">ERROR</span>
+                </div>
+                <p style="font-size: 0.9em; color: #ef4444;">Signature generation error</p>
+            </div>
+
+            <div class="service-card skipped">
+                <div class="service-title">
+                    <span>⏭️</span>
+                    <span>Analytics Service</span>
+                    <span class="badge skipped">SKIP</span>
+                </div>
+                <p style="font-size: 0.9em; color: #f59e0b;">Requires DB connection</p>
+            </div>
+
+            <div class="service-card skipped">
+                <div class="service-title">
+                    <span>⏭️</span>
+                    <span>Stripe Service</span>
+                    <span class="badge skipped">SKIP</span>
+                </div>
+                <p style="font-size: 0.9em; color: #f59e0b;">Requires API key</p>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <h2 class="category-title">🎯 Priority Fixes</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Služba</th>
+                        <th>Problém</th>
+                        <th>Priorita</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Auth Service</td>
+                        <td>bcrypt password length > 72 bytes</td>
+                        <td class="priority-high">🔴 VYSOKÁ</td>
+                    </tr>
+                    <tr>
+                        <td>API Keys Service</td>
+                        <td>API key generation length</td>
+                        <td class="priority-high">🔴 VYSOKÁ</td>
+                    </tr>
+                    <tr>
+                        <td>Webhooks Service</td>
+                        <td>Signature dict encoding</td>
+                        <td class="priority-high">🔴 VYSOKÁ</td>
+                    </tr>
+                    <tr>
+                        <td>Cache Service</td>
+                        <td>TTL datetime calculation</td>
+                        <td class="priority-medium">🟡 STREDNÁ</td>
+                    </tr>
+                    <tr>
+                        <td>Circuit Breaker</td>
+                        <td>Constructor parameter mismatch</td>
+                        <td class="priority-medium">🟡 STREDNÁ</td>
+                    </tr>
+                    <tr>
+                        <td>Database Service</td>
+                        <td>User model import</td>
+                        <td class="priority-medium">🟡 STREDNÁ</td>
+                    </tr>
+                    <tr>
+                        <td>SK RUZ Provider</td>
+                        <td>stub_mode not supported</td>
+                        <td class="priority-low">🟢 NÍZKA</td>
+                    </tr>
+                    <tr>
+                        <td>SK ZRSR Provider</td>
+                        <td>stub_mode not supported</td>
+                        <td class="priority-low">🟢 NÍZKA</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="category-section">
+            <h2 class="category-title">📈 Roadmap to 95%</h2>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 10px;">
+                <h3 style="margin-bottom: 15px;">Aktuálny stav: 66.7%</h3>
+                <ul style="list-style-position: inside; line-height: 2;">
+                    <li>✅ Opraviť 9 chybných služieb → +27% = <strong>93.7%</strong></li>
+                    <li>✅ Implementovať DB mock testy → +4% = <strong>97.7%</strong></li>
+                    <li>✅ Implementovať live API mocks → +2% = <strong>99.7%</strong></li>
+                </ul>
+                <p style="margin-top: 20px; padding: 15px; background: white; border-left: 4px solid #0B4EA2; border-radius: 5px;">
+                    <strong>Odhadovaný čas:</strong> 2-3 dni práce
+                </p>
+            </div>
+        </div>
+
+        <footer style="background: #f8f9fa; padding: 30px; text-align: center; color: #6b7280;">
+            <p><strong>DIMITRI-CHECKER</strong> - ILUMINATI SYSTEM v5.0 Enterprise Edition</p>
+            <p style="margin-top: 10px;">Report vygenerovaný: 2025-12-23 03:06 UTC</p>
+            <p style="margin-top: 5px;">Test framework: Custom Python test suite | Backend: Python 3.14.2</p>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,327 @@
+# 🏗️ V4-Finstat Projekt - Architecture
+
+Architektonický diagram a popis systému.
+
+## 📊 System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CLIENT LAYER                            │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │   Browser    │  │   Mobile     │  │   API Client  │        │
+│  │  (React PWA) │  │   (PWA)      │  │   (External)  │        │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘        │
+│         │                 │                  │                 │
+└─────────┼─────────────────┼──────────────────┼─────────────────┘
+          │                 │                  │
+          │ HTTPS           │ HTTPS            │ HTTPS
+          │                 │                  │
+┌─────────▼─────────────────▼──────────────────▼─────────────────┐
+│                      REVERSE PROXY LAYER                          │
+│                                                                   │
+│                        ┌─────────────┐                           │
+│                        │    Nginx    │                           │
+│                        │  (SSL/TLS)  │                           │
+│                        └──────┬──────┘                           │
+└───────────────────────────────┼───────────────────────────────────┘
+                                │
+                                │ HTTP
+                                │
+┌───────────────────────────────▼───────────────────────────────────┐
+│                        APPLICATION LAYER                          │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                    FRONTEND (React)                         │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │ │
+│  │  │  Pages   │  │Components│  │  Hooks   │  │  Utils   │   │ │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │ │
+│  │                                                              │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │         Service Worker (PWA)                          │  │ │
+│  │  │  - Offline caching                                    │  │ │
+│  │  │  - Auto-update                                        │  │ │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                    BACKEND (FastAPI)                        │ │
+│  │                                                              │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │              API Endpoints                             │ │
+│  │  │  - /api/search      - Hlavné vyhľadávanie             │ │
+│  │  │  - /api/health      - Health check                     │ │
+│  │  │  - /api/metrics    - Metríky                          │ │
+│  │  │  - /api/cache/stats - Cache štatistiky                 │ │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  │                                                              │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │              Services Layer                            │ │
+│  │  │                                                         │ │
+│  │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │ │
+│  │  │  │  Country     │  │   Cache     │  │   Rate      │   │ │
+│  │  │  │  Integrations│  │   Service   │  │   Limiter  │   │ │
+│  │  │  │              │  │             │  │             │   │ │
+│  │  │  │ - SK (RPO)   │  │ - In-memory  │  │ - Token     │   │ │
+│  │  │  │ - CZ (ARES)  │  │ - PostgreSQL │  │   Bucket   │   │ │
+│  │  │  │ - PL (KRS)   │  │ - TTL 24h   │  │             │   │ │
+│  │  │  │ - HU (NAV)   │  │             │  │             │   │ │
+│  │  │  └──────────────┘  └──────────────┘  └──────────────┘   │ │
+│  │  │                                                         │ │
+│  │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │ │
+│  │  │  │  Circuit     │  │   Proxy      │  │   Risk       │   │ │
+│  │  │  │  Breaker     │  │   Rotation   │  │   Intelligence│   │ │
+│  │  │  │              │  │             │  │              │   │ │
+│  │  │  │ - Auto retry │  │ - Round-robin│  │ - White Horse│   │ │
+│  │  │  │ - Fallback   │  │ - Health     │  │   Detector  │   │ │
+│  │  │  │              │  │   checking  │  │ - Carousel   │   │ │
+│  │  │  └──────────────┘  └──────────────┘  │   Detection │   │ │
+│  │  │                                      └──────────────┘   │ │
+│  │  │                                                         │ │
+│  │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │ │
+│  │  │  │  Metrics    │  │  Performance  │  │   Error      │   │ │
+│  │  │  │  Collector  │  │   Utils      │  │   Handler    │   │ │
+│  │  │  │             │  │              │  │              │   │ │
+│  │  │  │ - Counters  │  │ - Timing     │  │ - Logging    │   │ │
+│  │  │  │ - Timers    │  │ - Caching    │  │ - Reporting  │   │ │
+│  │  │  │ - Gauges    │  │ - Batching   │  │              │   │ │
+│  │  │  └──────────────┘  └──────────────┘  └──────────────┘   │ │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└───────────────────────────┬─────────────────────────────────────┘
+                              │
+                              │ SQL
+                              │
+┌─────────────────────────────▼─────────────────────────────────────┐
+│                        DATA LAYER                                  │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │              PostgreSQL Database                            │ │
+│  │                                                              │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │ │
+│  │  │  Search      │  │   Company    │  │  Analytics   │      │ │
+│  │  │  History     │  │   Cache     │  │              │      │ │
+│  │  │              │  │             │  │ - Events     │      │ │
+│  │  │ - Query      │  │ - Identifier│  │ - Metrics    │      │ │
+│  │  │ - Results    │  │ - Data      │  │ - Stats      │      │ │
+│  │  │ - Timestamp  │  │ - Risk score│  │              │      │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘      │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────┘
+                              │
+                              │ HTTP/HTTPS
+                              │
+┌─────────────────────────────▼─────────────────────────────────────┐
+│                    EXTERNAL SERVICES LAYER                         │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │  SK RPO API  │  │  CZ ARES API │  │  PL KRS API   │           │
+│  │  (Slovensko) │  │  (Česko)     │  │  (Poľsko)     │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │  HU NAV API  │  │  Debt        │  │  Other       │           │
+│  │  (Maďarsko)  │  │  Registers   │  │  Services    │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+## 🔄 Data Flow
+
+### Search Request Flow
+
+```
+1. User Input (IČO/názov)
+   │
+   ▼
+2. Frontend → API Request
+   │
+   ▼
+3. Backend Rate Limiter
+   │
+   ▼
+4. Cache Check (in-memory + DB)
+   │
+   ├─ Cache Hit → Return Cached Data
+   │
+   └─ Cache Miss
+      │
+      ▼
+5. Country Detection
+   │
+   ├─ SK → RPO Service
+   ├─ CZ → ARES Service
+   ├─ PL → KRS/CEIDG Service
+   └─ HU → NAV Service
+      │
+      ▼
+6. External API Call
+   │
+   ├─ Circuit Breaker Check
+   ├─ Proxy Rotation (if enabled)
+   └─ Error Handling
+      │
+      ▼
+7. Data Parsing & Normalization
+   │
+   ▼
+8. Risk Intelligence Analysis
+   │
+   ├─ White Horse Detection
+   ├─ Carousel Detection
+   └─ Risk Score Calculation
+      │
+      ▼
+9. Graph Generation
+   │
+   ├─ Nodes (companies, people, addresses)
+   └─ Edges (relationships)
+      │
+      ▼
+10. Cache Storage
+    │
+    ▼
+11. Response to Frontend
+    │
+    ▼
+12. Graph Visualization
+```
+
+## 🧩 Component Details
+
+### Frontend Components
+
+**Pages:**
+- `HomePageNew.jsx` - Hlavná stránka s vyhľadávaním
+- `TermsOfService.jsx` - VOP
+- `PrivacyPolicy.jsx` - GDPR zásady
+- `Disclaimer.jsx` - Disclaimer
+
+**Components:**
+- `ForceGraph.jsx` - Graf vizualizácia
+- `Footer.jsx` - Footer s linkmi
+- `Layout.jsx` - Layout wrapper
+
+**Hooks:**
+- `useOffline.js` - Offline detection
+
+**Utils:**
+- `performance.js` - Performance utilities (debounce, throttle)
+
+### Backend Services
+
+**Country Integrations:**
+- `sk_rpo.py` - Slovensko RPO
+- `cz_ares.py` - Česko ARES
+- `pl_krs.py` - Poľsko KRS
+- `pl_ceidg.py` - Poľsko CEIDG
+- `pl_biala_lista.py` - Poľsko Biała Lista
+- `hu_nav.py` - Maďarsko NAV
+
+**Core Services:**
+- `cache.py` - Cache management
+- `database.py` - PostgreSQL operations
+- `rate_limiter.py` - Rate limiting
+- `circuit_breaker.py` - Circuit Breaker pattern
+- `proxy_rotation.py` - Proxy rotation
+- `metrics.py` - Metrics collection
+- `performance.py` - Performance utilities
+- `risk_intelligence.py` - Risk analysis
+- `error_handler.py` - Error handling
+
+## 🔐 Security Layers
+
+```
+┌─────────────────────────────────────────┐
+│         Security Layers                 │
+├─────────────────────────────────────────┤
+│ 1. SSL/TLS Encryption (HTTPS)           │
+│ 2. CORS Protection                      │
+│ 3. Rate Limiting                       │
+│ 4. Input Validation                    │
+│ 5. SQL Injection Protection            │
+│ 6. Error Handling (no sensitive data)  │
+│ 7. Proxy Rotation (IP rotation)       │
+│ 8. Circuit Breaker (DoS protection)   │
+└─────────────────────────────────────────┘
+```
+
+## 📈 Scalability
+
+### Horizontal Scaling
+
+```
+                    ┌─────────────┐
+                    │   Load      │
+                    │   Balancer  │
+                    └──────┬──────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+   ┌────▼────┐       ┌────▼────┐       ┌────▼────┐
+   │ Backend │       │ Backend │       │ Backend │
+   │  App 1  │       │  App 2  │       │  App 3  │
+   └────┬────┘       └────┬────┘       └────┬────┘
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │  PostgreSQL │
+                    │  (Primary)  │
+                    └─────────────┘
+```
+
+### Caching Strategy
+
+```
+Level 1: In-Memory Cache (Fastest)
+   │
+   ├─ TTL: 1 hour
+   └─ Size: Limited by RAM
+
+Level 2: PostgreSQL Cache (Fast)
+   │
+   ├─ TTL: 24 hours
+   └─ Size: Limited by disk
+
+Level 3: External API (Slowest)
+   │
+   └─ Always fresh data
+```
+
+## 🚀 Performance Optimizations
+
+### Frontend
+- Code splitting (Vite)
+- React.memo for components
+- useMemo/useCallback hooks
+- Service Worker caching
+- Lazy loading
+
+### Backend
+- Connection pooling
+- Request batching
+- Cache decorators
+- Async processing
+- Proxy rotation
+
+## 📊 Monitoring & Observability
+
+```
+┌─────────────────────────────────────────┐
+│      Monitoring Stack                  │
+├─────────────────────────────────────────┤
+│ - Health Checks (/api/health)          │
+│ - Metrics (/api/metrics)              │
+│ - Cache Stats (/api/cache/stats)       │
+│ - Proxy Stats (/api/proxy/stats)      │
+│ - Circuit Breaker Stats                │
+│ - Application Logs                     │
+│ - System Logs (systemd)               │
+└─────────────────────────────────────────┘
+```
+
+---
+
+*Posledná aktualizácia: December 2024*
+
