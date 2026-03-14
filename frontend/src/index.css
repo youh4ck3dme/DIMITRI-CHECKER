@@ -2,43 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-    background-color: #0A0A0A; /* Deep black */
-    color: #ffffff;
+@layer base {
+  :root {
+    --brand-navy: #0F172A;
+    --brand-gold: #D4AF37;
+    --brand-slate: #64748B;
+    --brand-white: #F8FAFC;
+    --brand-border: rgba(148, 163, 184, 0.1);
+  }
+
+  body {
+    background-color: var(--brand-navy);
+    color: var(--brand-white);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
     overflow-x: hidden;
+  }
 }
 
-/* Custom scrollbar */
+@layer components {
+  .enterprise-card {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid var(--brand-border);
+    border-radius: 4px; /* Strictly formal */
+    backdrop-filter: blur(8px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .enterprise-card:hover {
+    border-color: rgba(212, 175, 55, 0.3);
+    background: rgba(30, 41, 59, 0.7);
+  }
+
+  .btn-gold {
+    background: var(--brand-gold);
+    color: var(--brand-navy);
+    font-weight: 600;
+    padding: 0.625rem 1.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .btn-gold:hover {
+    background: #E5C35D;
+    transform: translateY(-1px);
+  }
+}
+
+/* Custom scrollbar - Minimalist */
 ::-webkit-scrollbar {
-    width: 10px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #0A0A0A;
+  background: var(--brand-navy);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #D4AF37;
-    border-radius: 5px;
+  background: var(--brand-slate);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #FFD700;
-}
-
-/* Animations */
-@keyframes fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animate-fade-in {
-    animation: fade-in 0.3s ease-out;
+  background: var(--brand-gold);
 }
 

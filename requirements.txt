@@ -1,0 +1,6 @@
+-r backend/requirements.txt
+ruff# AI Integration
+openai
+python-dotenv
+requests
+cryptography

@@ -3,8 +3,8 @@ Risk Intelligence služba
 Detekcia bielych koní, karuselových štruktúr a vylepšený risk scoring
 """
 
-from typing import Dict, List, Set
-from collections import defaultdict, Counter
+from typing import Dict, List
+from collections import defaultdict
 
 
 def detect_white_horse(nodes: List[Dict], edges: List[Dict]) -> Dict[str, int]:

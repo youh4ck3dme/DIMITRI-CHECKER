@@ -5,8 +5,7 @@ Chráni pred kaskádovými zlyhaniami pri výpadkoch externých služieb
 
 from enum import Enum
 from typing import Callable, Optional, Any
-from datetime import datetime, timedelta
-import time
+from datetime import datetime
 
 
 class CircuitState(Enum):
@@ -88,7 +87,7 @@ class CircuitBreaker:
             result = func(*args, **kwargs)
             self._on_success()
             return result
-        except self.expected_exception as e:
+        except self.expected_exception:
             self._on_failure()
             raise
     

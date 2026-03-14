@@ -5,7 +5,8 @@ Kompletný návod na nasadenie ILUMINATI SYSTEM do produkcie.
 ## 📋 Obsah
 
 1. [Predpoklady](#predpoklady)
-2. [Produkčné prostredie](#produkčné-prostredie)
+2. [Automatizovaný Deployment (Docker)](#automatizovaný-deployment-docker)
+3. [Produkčné prostredie](#produkčné-prostredie)
 3. [Backend deployment](#backend-deployment)
 4. [Frontend deployment](#frontend-deployment)
 5. [Databáza setup](#databáza-setup)
@@ -30,8 +31,37 @@ Kompletný návod na nasadenie ILUMINATI SYSTEM do produkcie.
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL 14+
-- Nginx (pre reverse proxy)
+- Nginx (pre reverse proxy - voliteľné pri Docker deploy)
 - Certbot (pre SSL certifikáty)
+
+## 🐳 Automatizovaný Deployment (Docker)
+
+Pre najrýchlejšie nasadenie na VPS (napr. tvoje **194.182.87.6**) sme pripravili automatizovaný skript:
+
+```bash
+# 1. Klonovanie repozitára
+
+git clone <url> v4finstat
+cd v4finstat
+
+# 2. Nastavenie produkčných premenných
+cp backend/.env.example backend/.env # Upravte kľúče
+
+# 3. Spustenie skriptu
+chmod +x deploy_vps.sh
+./deploy_vps.sh
+```
+
+### Prečo použiť Docker?
+-   **Izolácia:** Databáza a Redis bežia v dedikovaných kontajneroch.
+-   **Predvídateľnosť:** Prostredie je identické s vývojovým.
+-   **Multi-stage builds:** Frontend je servovaný cez optimalizovaný Nginx, backend cez Uvicorn.
+
+### Monitoring kontajnerov
+```bash
+docker-compose ps
+docker-compose logs -f
+```
 
 ## 🖥️ Produkčné prostredie
 

@@ -5,7 +5,7 @@ API dokumentácia: https://wl-api.mf.gov.pl/
 """
 
 import requests
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from datetime import datetime, timedelta
 
 # Cache pre Biała Lista odpovede

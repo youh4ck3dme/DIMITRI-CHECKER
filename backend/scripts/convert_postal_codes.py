@@ -3,7 +3,6 @@ Skript na konverziu Excel súborov s PSČ na CSV formát pre RegionResolver.
 Spracováva OBCE.xlsx, ULICE.xlsx a POBoxy.xlsx z PSC-2025.
 """
 
-import os
 import sys
 from pathlib import Path
 

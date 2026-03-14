@@ -4,15 +4,13 @@ Zbieranie a agregácia metrík pre business intelligence
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from sqlalchemy import func, and_, extract
-from sqlalchemy.orm import Session
 
 from services.database import (
     get_db_session,
     SearchHistory,
     Analytics,
-    CompanyCache,
 )
 from services.auth import User
 

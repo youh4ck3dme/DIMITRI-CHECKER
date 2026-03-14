@@ -3,14 +3,13 @@ API Keys Management Service
 Pre Enterprise tier používateľov - generovanie a správa API kľúčov
 """
 
-import os
 import secrets
 import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.orm import Session, relationship
-from services.database import Base, get_db_session
+from services.database import Base
 
 
 class ApiKey(Base):

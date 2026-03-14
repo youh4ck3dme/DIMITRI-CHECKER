@@ -4,7 +4,7 @@ Zbieranie metrík pre monitoring a analytics
 """
 
 from typing import Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 import time
 

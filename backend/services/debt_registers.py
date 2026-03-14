@@ -3,10 +3,8 @@ Dlhové registre - Finančná správa SK/CZ
 Kontrola dlhov voči daňovým úradom
 """
 
-import requests
 from typing import Dict, Optional
 from datetime import datetime, timedelta
-import re
 
 # Cache pre dlhové registry
 _debt_cache = {}

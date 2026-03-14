@@ -29,17 +29,21 @@ Cieľ: Poskytnúť malým a stredným podnikom (SME) v regióne V4 nástroj podn
 - **Architektúra:** Modulárny monolit pripravený na mikroservisy
 - **Payment:** Stripe integration pre subscriptions
 
-## Inštalácia a Spustenie
+### Krok 0: Automatizovaný Docker Deployment (Odporúčané)
 
-### Predpoklady
-- Python 3.10+ s pip
-- Node.js 18+ s npm
-- Git
-- Docker & Docker Compose (voliteľné, pre containerizované spustenie)
-- PostgreSQL (ak nepoužívate Docker)
-- Redis (voliteľné, pre distributed caching)
+Ak máte nainštalovaný Docker a Docker Compose, môžete celý systém spustiť jedným príkazom:
 
-### Krok 1: Backend Setup
+```bash
+# Nastavenie práv pre skript
+chmod +x deploy_vps.sh
+
+# Spustenie deploymentu
+./deploy_vps.sh
+```
+
+Tento skript automaticky stiahne zmeny, prebuduje produkčné kontajnery a spustí systém.
+
+### Krok 1: Manuálny Backend Setup
 
 ```bash
 cd backend
@@ -195,7 +199,34 @@ DIMITRI-CHECKER/
 - **Proxy Rotation:** ✅ Pre registre bez oficiálneho API
 - **Authentication:** ✅ JWT-based authentication s bcrypt password hashing
 - **API Security:** ✅ HMAC SHA256 signatures pre webhooks
-- **Tier-based Access:** ✅ Enterprise features len pre Enterprise tier
+- **Tier-based Access:** ✅ Enterprise features
+
+## Produkčné prostredie
+
+### 1. Predpoklady
+- VPS server (napr. Ubuntu 22.04)
+- Docker a Docker Compose (nainštalované)
+- Nginx (pre reverse proxy - voliteľné pri Docker deploy)
+- Certbot (pre SSL certifikáty)
+
+## 🐳 Automatizovaný Deployment (Docker)
+
+Pre najrýchlejšie nasadenie na VPS (napr. tvoje **194.182.87.6**) sme pripravili automatizovaný skript:
+
+```bash
+# 1. Klonovanie repozitára
+git clone <url> v4finstat
+cd v4finstat
+
+# 2. Nastavenie produkčných premenných
+cp backend/.env.example backend/.env # Upravte kľúče
+
+# 3. Spustenie skriptu
+chmod +x deploy_vps.sh
+./deploy_vps.sh
+```
+
+Skript automaticky vytvorí izolované siete, databázy a spustí optimalizovaný produkčný Nginx s Reactom.
 
 ## Právne dokumenty
 
@@ -224,7 +255,14 @@ Tento projekt je vo vývoji. Všetky práva vyhradené.
 - ✅ **V4 Integrations:** SK (RPO), CZ (ARES), PL (KRS + CEIDG + Biała Lista), HU (NAV)
 - ✅ **Performance:** Frontend a backend optimalizácie (memoization, code splitting, connection pooling)
 - ✅ **Security:** JWT authentication, HMAC signatures, rate limiting, tier-based access
-- ✅ **Documentation:** Kompletná dokumentácia (Developer Guide, Deployment Guide, Architecture)
+- ✅ **Documentation:**
+  - 📘 [Projektová Dokumentácia](docs/DEVELOPER_GUIDE.md)
+  - 🔌 [API Dokumentácia](docs/API_DOCUMENTATION.md)
+  - 🧪 [Plocha (Desktop) - Investorsky Plan](file:///C:/Users/42195/Desktop/investorplan.md)
+- ✅ Risk Intelligence s dlhovými registrami
+- ✅ PDF export reportov
+- ✅ Circuit Breaker pattern
+- ✅ Proxy rotation
 
 ### Verzia 4.0 (November 2024)
 - ✅ Risk Intelligence s dlhovými registrami

@@ -6,7 +6,6 @@ Run this script to add the new column to existing database
 import os
 import sys
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 
 # Database URL
 _default_user = os.getenv("USER", os.getenv("USERNAME", "postgres"))

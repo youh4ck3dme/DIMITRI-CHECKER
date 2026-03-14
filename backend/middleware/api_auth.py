@@ -5,7 +5,6 @@ Validácia API keys pre Enterprise tier používateľov
 
 from typing import Optional
 from fastapi import HTTPException, status, Header
-from sqlalchemy.orm import Session
 from services.api_keys import get_api_key_by_token, update_api_key_usage
 from services.database import get_db_session
 from services.auth import User, UserTier

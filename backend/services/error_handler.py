@@ -4,6 +4,7 @@ Centralizované error handling pre ILUMINATI SYSTEM
 """
 
 import logging
+from pathlib import Path
 import traceback
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -11,14 +12,18 @@ from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 import requests
 
-# Setup logging
+# Logger setup
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOG_DIR / "iluminati.log"
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/iluminati.log'),
-        logging.StreamHandler()
-    ]
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
+        logging.StreamHandler(),
+    ],
 )
 
 logger = logging.getLogger("iluminati")

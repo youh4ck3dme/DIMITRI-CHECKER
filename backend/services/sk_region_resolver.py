@@ -109,7 +109,7 @@ def _load_postal_codes_from_csv() -> Dict[str, Dict[str, str]]:
                     okres_col = field
 
             if not postal_col:
-                print(f"⚠️ CSV neobsahuje stĺpec pre PSČ, používam fallback mapping")
+                print("⚠️ CSV neobsahuje stĺpec pre PSČ, používam fallback mapping")
                 return _FALLBACK_POSTAL_CODE_REGIONS
 
             for row in reader:
@@ -136,7 +136,7 @@ def _load_postal_codes_from_csv() -> Dict[str, Dict[str, str]]:
             print(f"✅ Načítaných {len(mapping)} PSČ z CSV")
             return mapping
         else:
-            print(f"⚠️ CSV je prázdny, používam fallback mapping")
+            print("⚠️ CSV je prázdny, používam fallback mapping")
             return _FALLBACK_POSTAL_CODE_REGIONS
 
     except Exception as e:

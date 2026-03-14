@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
+from services.ai_service import ai_service
 from services.analytics import (
     get_api_usage,
     get_dashboard_summary,
@@ -429,6 +430,8 @@ def read_root():
             "ERP Integrations",
             "Analytics Dashboard",
             "Favorites System",
+            "AI Risk Auditor (OpenAI)",
+            "Corporate Assistant (Bot)",
         ],
         "endpoints": {
             "health": "/api/health",
@@ -437,6 +440,10 @@ def read_root():
             "auth": "/api/auth",
             "enterprise": "/api/enterprise",
             "analytics": "/api/analytics",
+            "ai": {
+                "narrative": "/api/ai/narrative",
+                "chat": "/api/ai/chat",
+            },
             "export": {
                 "excel": "/api/export/excel",
                 "batch_excel": "/api/export/batch-excel",
@@ -450,6 +457,38 @@ def read_root():
             "HU": "Maďarsko (NAV)",
         },
     }
+
+
+# --- AI ENDPOINTY (OpenAI Integration) ---
+
+
+@app.post("/api/ai/narrative")
+async def get_ai_narrative(
+    company_data: Dict,
+    risk_score: float,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Vygeneruje AI komentár k rizikovému profilu firmy.
+    """
+    narrative = ai_service.generate_risk_narrative(company_data, risk_score)
+    return {"success": True, "narrative": narrative}
+
+
+@app.post("/api/ai/chat")
+async def ai_assistant_chat(
+    request: Dict,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Korporátny AI asistent (Bot) pre analýzu dát.
+    """
+    query = request.get("query")
+    if not query:
+        raise HTTPException(status_code=400, detail="Chýbajúca otázka (query)")
+
+    response = ai_service.assistant_chat(query)
+    return {"success": True, "response": response}
 
 
 @app.get("/api/cache/stats")

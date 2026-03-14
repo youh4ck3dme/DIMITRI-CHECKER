@@ -4,11 +4,11 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: iluminati_postgres
+    container_name: v4finstat_db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-iluminati_db}
+      POSTGRES_DB: ${POSTGRES_DB:-v4finstat_db}
     ports:
       - "5432:5432"
     volumes:
@@ -19,12 +19,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - iluminati_network
+      - v4finstat_network
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: iluminati_redis
+    container_name: v4finstat_redis
     ports:
       - "6379:6379"
     volumes:
@@ -36,21 +36,21 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - iluminati_network
+      - v4finstat_network
 
   # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: iluminati_backend
+    container_name: v4finstat_api
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-iluminati_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-v4finstat_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
-      ENVIRONMENT: ${ENVIRONMENT:-development}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
     ports:
       - "8000:8000"
     depends_on:
@@ -62,7 +62,7 @@ services:
       - ./backend:/app
       - backend_logs:/app/logs
     networks:
-      - iluminati_network
+      - v4finstat_network
     restart: unless-stopped
 
   # Frontend
@@ -70,18 +70,15 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: iluminati_frontend
+    container_name: v4finstat_web
     environment:
-      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     ports:
-      - "3000:3000"
+      - "80:80"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     networks:
-      - iluminati_network
+      - v4finstat_network
     restart: unless-stopped
 
 volumes:
@@ -90,6 +87,6 @@ volumes:
   backend_logs:
 
 networks:
-  iluminati_network:
+  v4finstat_network:
     driver: bridge
 

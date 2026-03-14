@@ -8,12 +8,9 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
-try:
-    import pandas as pd
+import importlib.util
 
-    PANDAS_AVAILABLE = True
-except ImportError:
-    PANDAS_AVAILABLE = False
+PANDAS_AVAILABLE = importlib.util.find_spec("pandas") is not None
 
 try:
     from openpyxl import Workbook
@@ -179,7 +176,7 @@ def export_to_excel(graph_data: Dict, filename: Optional[str] = None) -> bytes:
             try:
                 if len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
-            except:
+            except Exception:
                 pass
         adjusted_width = min(max_length + 2, 50)
         ws3.column_dimensions[column_letter].width = adjusted_width

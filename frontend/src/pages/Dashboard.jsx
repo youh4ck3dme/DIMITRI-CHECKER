@@ -96,236 +96,211 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      <div className="min-h-screen bg-brand-navy flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-gold"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
-      <nav className="bg-white/10 backdrop-blur-lg border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <IluminatiLogo />
-            <div className="flex items-center space-x-4">
-              <span className="text-white">{user?.email}</span>
-              <button
-                onClick={logout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Logout
-              </button>
+    <div className="min-h-screen bg-brand-navy text-brand-white">
+      <nav className="fixed top-0 w-full z-50 bg-brand-navy/80 backdrop-blur-md border-b border-brand-border h-20">
+        <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+          <div 
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => navigate('/')}
+          >
+            <IluminatiLogo size={32} />
+            <div className="flex flex-col border-l border-brand-border pl-4">
+              <span className="font-bold text-brand-white text-lg tracking-tight leading-none uppercase">V4-FINSTAT</span>
+              <span className="text-[10px] text-brand-slate uppercase tracking-[0.2em] mt-1 font-bold">Terminal Access</span>
             </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <span className="text-[10px] uppercase font-bold text-brand-slate tracking-widest">{user?.email}</span>
+            <button
+              onClick={logout}
+              className="text-[10px] uppercase font-bold text-red-400 hover:text-red-300 transition-colors tracking-widest"
+            >
+              Odhlásiť
+            </button>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* User Profile Card */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 mb-6 border border-white/20">
-          <div className="flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-6 pt-32 pb-20">
+        {/* Profile Card */}
+        <div className="enterprise-card p-10 mb-10 border-t-2 border-brand-gold">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 className="text-2xl font-bold text-white mb-2">
-                {user?.full_name || 'User'}
+              <div className="text-[10px] uppercase font-bold text-brand-gold tracking-[0.3em] mb-4">Enterprise User Profile</div>
+              <h2 className="text-4xl font-bold tracking-tighter mb-2">
+                {user?.full_name || 'Strategic Analyst'}
               </h2>
-              <p className="text-blue-200">{user?.email}</p>
+              <p className="text-brand-slate font-mono text-sm">{user?.email}</p>
             </div>
-            <div className="text-right">
-              <div className={`inline-block px-4 py-2 rounded-lg text-white font-semibold ${getTierColor(user?.tier)}`}>
-                {user?.tier?.toUpperCase() || 'FREE'}
+            <div className="flex flex-col items-end gap-3">
+              <div className="px-5 py-2 border border-brand-gold/30 bg-brand-gold/5 text-brand-gold text-xs font-black uppercase tracking-widest">
+                Tier: {user?.tier || 'FREE'}
               </div>
               {user?.tier === 'free' && (
                 <button
                   onClick={() => handleUpgrade('pro')}
-                  className="mt-2 block w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="btn-gold px-8 py-3 text-[10px]"
                 >
-                  Upgrade to PRO
+                  Upgrade to Unlimited
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Usage Statistics */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
-            <h3 className="text-xl font-bold text-white mb-4">Usage Statistics</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* Stats */}
+          <div className="enterprise-card p-8">
+            <h3 className="text-[10px] font-bold text-brand-slate uppercase tracking-widest mb-8">Intelligence Limits</h3>
             {tierLimits ? (
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-white mb-2">
-                    <span>Searches per day</span>
-                    <span className="font-semibold">
-                      {tierLimits.searches_per_day === -1 ? 'Unlimited' : tierLimits.searches_per_day}
-                    </span>
-                  </div>
+              <div className="space-y-6">
+                <div className="flex justify-between items-end border-b border-brand-border pb-4">
+                  <span className="text-sm text-brand-white">Denné dopyty</span>
+                  <span className="text-xl font-bold text-brand-gold">
+                    {tierLimits.searches_per_day === -1 ? '∞' : tierLimits.searches_per_day}
+                  </span>
                 </div>
-                <div>
-                  <div className="flex justify-between text-white mb-2">
-                    <span>Max graph nodes</span>
-                    <span className="font-semibold">
-                      {tierLimits.max_graph_nodes === -1 ? 'Unlimited' : tierLimits.max_graph_nodes}
-                    </span>
-                  </div>
+                <div className="flex justify-between items-end border-b border-brand-border pb-4">
+                  <span className="text-sm text-brand-white">Hĺbka grafu</span>
+                  <span className="text-xl font-bold text-brand-gold">
+                    {tierLimits.max_graph_nodes === -1 ? 'Full' : tierLimits.max_graph_nodes}
+                  </span>
                 </div>
-                <div>
-                  <div className="flex justify-between text-white mb-2">
-                    <span>PDF Export</span>
-                    <span className="font-semibold">
-                      {tierLimits.can_export_pdf ? '✅ Enabled' : '❌ Disabled'}
-                    </span>
-                  </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-sm text-brand-white">Export Intelligence</span>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${tierLimits.can_export_pdf ? 'text-green-500' : 'text-red-900'}`}>
+                    {tierLimits.can_export_pdf ? 'Povolený' : 'Zablokovaný'}
+                  </span>
                 </div>
               </div>
             ) : (
-              <p className="text-blue-200">Loading limits...</p>
+              <div className="animate-pulse flex space-y-4 flex-col">
+                <div className="h-4 bg-slate-800 rounded w-full"></div>
+                <div className="h-4 bg-slate-800 rounded w-3/4"></div>
+              </div>
             )}
           </div>
 
-          {/* Search History */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
-            <h3 className="text-xl font-bold text-white mb-4">Recent Searches</h3>
+          {/* History */}
+          <div className="enterprise-card p-8">
+            <h3 className="text-[10px] font-bold text-brand-slate uppercase tracking-widest mb-8">Monitorovací log</h3>
             {searchHistory.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {searchHistory.map((search, index) => (
                   <div
                     key={index}
-                    className="bg-white/5 rounded-lg p-3 text-white"
+                    className="flex justify-between items-center border-b border-brand-border pb-3 group cursor-pointer"
+                    onClick={() => navigate(`/?q=${search.query}`)}
                   >
-                    <div className="font-semibold">{search.query}</div>
-                    <div className="text-sm text-blue-200">
-                      {new Date(search.timestamp).toLocaleDateString()}
+                    <div>
+                      <div className="text-sm font-bold text-brand-white group-hover:text-brand-gold transition-colors">{search.query}</div>
+                      <div className="text-[10px] text-brand-slate uppercase mt-1">
+                        {new Date(search.timestamp).toLocaleDateString('sk-SK')}
+                      </div>
                     </div>
+                    <Download size={12} className="text-brand-slate opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-blue-200">No search history yet</p>
+              <p className="text-xs text-brand-slate italic uppercase tracking-widest">Žiadne záznamy</p>
             )}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="enterprise-card p-8 flex flex-col justify-between">
+            <h3 className="text-[10px] font-bold text-brand-slate uppercase tracking-widest mb-8">Systémové akcie</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => navigate('/')} className="px-4 py-3 border border-brand-border text-[9px] font-black uppercase tracking-widest hover:border-brand-white transition-all">Nová analýza</button>
+              <button className="px-4 py-3 border border-brand-border text-[9px] font-black uppercase tracking-widest opacity-50 cursor-not-allowed">API Dokumentácia</button>
+              {user?.tier === 'enterprise' && (
+                <>
+                  <button onClick={() => navigate('/api-keys')} className="px-4 py-3 border border-brand-gold text-brand-gold text-[9px] font-black uppercase tracking-widest hover:bg-brand-gold/10 transition-all">API Kľúče</button>
+                  <button className="px-4 py-3 border border-brand-border text-[9px] font-black uppercase tracking-widest">Webhooks</button>
+                </>
+              )}
+            </div>
+            <div className="mt-8 text-[9px] text-brand-slate uppercase tracking-widest leading-relaxed">
+              V prípade potreby zvýšenia limitov kontaktujte enterprise support.
+            </div>
           </div>
         </div>
 
-        {/* Favorite Companies */}
-        <div className="mt-6 bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
-          <h3 className="text-xl font-bold text-white mb-4">Favorite Companies</h3>
+        {/* Favorites */}
+        <div className="mt-10 enterprise-card p-10">
+          <div className="flex justify-between items-center mb-10">
+            <h3 className="text-[10px] font-bold text-brand-slate uppercase tracking-widest">Sledované subjekty (Core Watchlist)</h3>
+            <button className="text-[9px] font-black uppercase tracking-widest text-brand-gold hover:underline">Exportovať zoznam</button>
+          </div>
+          
           {favorites.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {favorites.map((favorite) => (
                 <div
                   key={favorite.id}
-                  className="bg-white/5 rounded-lg p-4 text-white hover:bg-white/10 transition-colors"
+                  className="border border-brand-border p-6 rounded hover:border-brand-gold transition-all group"
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <div className="font-semibold text-lg">{favorite.company_name}</div>
-                      <div className="text-sm text-blue-200">
+                      <div className="font-bold text-lg tracking-tight group-hover:text-brand-gold transition-colors">{favorite.company_name}</div>
+                      <div className="text-[10px] text-brand-slate uppercase font-medium mt-1">
                         {favorite.company_identifier} • {favorite.country}
                       </div>
                     </div>
                     <button
-                      onClick={async () => {
+                      onClick={async (e) => {
+                        e.stopPropagation();
                         try {
                           const token = localStorage.getItem('access_token');
-                          const response = await fetch(
-                            `http://localhost:8000/api/user/favorites/${favorite.id}`,
-                            {
-                              method: 'DELETE',
-                              headers: {
-                                'Authorization': `Bearer ${token}`,
-                              },
-                            }
-                          );
-                          if (response.ok) {
-                            setFavorites(favorites.filter(f => f.id !== favorite.id));
-                          }
-                        } catch (error) {
-                          console.error('Error removing favorite:', error);
-                        }
+                          const response = await fetch(`${API_URL}/api/user/favorites/${favorite.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          });
+                          if (response.ok) setFavorites(favorites.filter(f => f.id !== favorite.id));
+                        } catch (error) { console.error(error); }
                       }}
-                      className="text-red-400 hover:text-red-300 ml-2"
-                      title="Remove from favorites"
+                      className="text-brand-slate hover:text-red-500 transition-colors"
                     >
-                      ✕
+                      <span className="text-xl">×</span>
                     </button>
                   </div>
+                  
                   {favorite.risk_score !== null && (
-                    <div className="mt-2">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        favorite.risk_score >= 7 ? 'bg-red-500/20 text-red-300' :
-                        favorite.risk_score >= 4 ? 'bg-orange-500/20 text-orange-300' :
-                        'bg-green-500/20 text-green-300'
-                      }`}>
-                        Risk: {favorite.risk_score.toFixed(1)}
-                      </span>
+                    <div className="flex items-center gap-2 mb-6">
+                      <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full" 
+                          style={{ 
+                            width: `${favorite.risk_score * 10}%`,
+                            backgroundColor: favorite.risk_score >= 7 ? '#ef4444' : favorite.risk_score >= 4 ? '#f59e0b' : '#10b981'
+                          }}
+                        ></div>
+                      </div>
+                      <span className="text-[10px] font-bold text-brand-white">Risk: {favorite.risk_score.toFixed(1)}</span>
                     </div>
                   )}
-                  {favorite.notes && (
-                    <div className="mt-2 text-sm text-blue-200 italic">
-                      "{favorite.notes}"
-                    </div>
-                  )}
+
                   <button
                     onClick={() => navigate(`/?q=${favorite.company_identifier}`)}
-                    className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                    className="w-full border border-brand-border py-2 text-[9px] font-black uppercase tracking-widest hover:bg-brand-white hover:text-brand-navy transition-all"
                   >
-                    View Details
+                    Otvoriť Report
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-blue-200">No favorite companies yet. Add companies to favorites from search results.</p>
+            <div className="text-center py-20 border border-brand-border border-dashed rounded">
+               <p className="text-xs text-brand-slate uppercase tracking-widest">Váš Watchlist je prázdny. Začnite novú analýzu.</p>
+            </div>
           )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mt-6 bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
-          <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
-          <div className="flex flex-wrap gap-4">
-            <button
-              onClick={() => navigate('/')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-            >
-              New Search
-            </button>
-            {user?.tier === 'enterprise' && (
-              <>
-                <button
-                  onClick={() => navigate('/api-keys')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-colors"
-                >
-                  API Keys
-                </button>
-                <button
-                  onClick={() => navigate('/webhooks')}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-colors"
-                >
-                  Webhooks
-                </button>
-                <button
-                  onClick={() => navigate('/erp-integrations')}
-                  className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition-colors"
-                >
-                  ERP Integrations
-                </button>
-                <button
-                  onClick={() => navigate('/analytics')}
-                  className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-lg transition-colors"
-                >
-                  Analytics
-                </button>
-              </>
-            )}
-            {user?.tier === 'free' && (
-              <button
-                onClick={() => handleUpgrade('pro')}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors"
-              >
-                Upgrade to PRO
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

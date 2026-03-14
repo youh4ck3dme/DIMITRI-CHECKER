@@ -7,12 +7,11 @@ import json
 import hashlib
 import hmac
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, List, Any
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, JSON
 from sqlalchemy.orm import Session, relationship
 from services.database import Base, get_db_session
-from services.auth import User
 
 
 class Webhook(Base):

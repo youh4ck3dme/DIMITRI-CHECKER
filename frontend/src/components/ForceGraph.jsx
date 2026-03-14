@@ -153,36 +153,33 @@ const ForceGraph = ({ data }) => {
 
   return (
     <>
-      <div className="relative border-2 border-[#D4AF37]/30 rounded-xl bg-gradient-to-br from-[#0A0A0A] via-[#1a1a2e] to-[#16213e] shadow-2xl overflow-hidden mt-6 backdrop-blur-sm force-graph-container">
+      <div className="relative border border-brand-border rounded bg-brand-navy shadow-sm overflow-hidden mt-6 force-graph-container">
         {/* Toolbar */}
         <div className="absolute top-4 right-4 z-10 flex gap-2">
           <button
             onClick={handleZoomIn}
-            className="p-2 bg-[#0A0A0A]/80 backdrop-blur-md border border-[#D4AF37]/30 rounded-lg text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-all"
+            className="p-2 bg-brand-navy border border-brand-border rounded text-brand-slate hover:text-brand-gold hover:border-brand-gold transition-all"
             title="Priblížiť"
           >
-            <ZoomIn size={18} />
+            <ZoomIn size={16} />
           </button>
           <button
             onClick={handleZoomOut}
-            className="p-2 bg-[#0A0A0A]/80 backdrop-blur-md border border-[#D4AF37]/30 rounded-lg text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-all"
-            title="Oddialiť"
+            className="p-2 bg-brand-navy border border-brand-border rounded text-brand-slate hover:text-brand-gold hover:border-brand-gold transition-all"
           >
-            <ZoomOut size={18} />
+            <ZoomOut size={16} />
           </button>
           <button
             onClick={handleReset}
-            className="p-2 bg-[#0A0A0A]/80 backdrop-blur-md border border-[#D4AF37]/30 rounded-lg text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-all"
-            title="Resetovať"
+            className="p-2 bg-brand-navy border border-brand-border rounded text-brand-slate hover:text-brand-gold hover:border-brand-gold transition-all"
           >
-            <RotateCcw size={18} />
+            <RotateCcw size={16} />
           </button>
           <button
             onClick={handleExportPNG}
-            className="p-2 bg-[#0A0A0A]/80 backdrop-blur-md border border-[#D4AF37]/30 rounded-lg text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-all"
-            title="Exportovať do PNG"
+            className="p-2 bg-brand-navy border border-brand-border rounded text-brand-slate hover:text-brand-gold hover:border-brand-gold transition-all"
           >
-            <Download size={18} />
+            <Download size={16} />
           </button>
         </div>
 
@@ -190,28 +187,22 @@ const ForceGraph = ({ data }) => {
         <ForceGraph2D
           ref={fgRef}
           graphData={graphData}
-          nodeLabel={(node) => `${node.label || node.id}\n${node.type || 'unknown'}`}
+          nodeLabel={(node) => `${node.label || node.id}`}
           nodeColor={getNodeColor}
           nodeVal={getNodeSize}
           nodeRelSize={6}
           linkColor={(link) => getLinkColor(link)}
-          linkWidth={2}
-          linkDirectionalArrowLength={6}
+          linkWidth={1.5}
+          linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
-          linkCurvature={0.25}
+          linkCurvature={0.2}
           onNodeClick={handleNodeClick}
           onNodeHover={(node) => {
-            if (node) {
-              document.body.style.cursor = 'pointer';
-            } else {
-              document.body.style.cursor = 'default';
-            }
+            document.body.style.cursor = node ? 'pointer' : 'default';
           }}
           cooldownTicks={100}
           onEngineStop={() => {
-            if (fgRef.current) {
-              fgRef.current.zoomToFit(400);
-            }
+            if (fgRef.current) fgRef.current.zoomToFit(400);
           }}
           backgroundColor="transparent"
           width={800}
@@ -219,49 +210,46 @@ const ForceGraph = ({ data }) => {
         />
       </div>
 
-      {/* Modal s detailom uzla */}
+      {/* Modal s detailom uzla - Enterprise Style */}
       {isModalOpen && selectedNode && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-navy/90 backdrop-blur-sm"
           onClick={() => setIsModalOpen(false)}
         >
           <div 
-            className="bg-gradient-to-br from-[#0A0A0A] via-[#1a1a2e] to-[#16213e] border-2 border-[#D4AF37]/50 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl relative"
+            className="bg-brand-navy border border-brand-border rounded p-8 max-w-md w-full mx-4 shadow-xl relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close button */}
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 p-2 text-[#D4AF37] hover:text-[#FFD700] hover:bg-[#D4AF37]/20 rounded-lg transition-all"
+              className="absolute top-6 right-6 p-2 text-brand-slate hover:text-brand-white transition-all"
             >
               <X size={20} />
             </button>
 
-            {/* Header */}
-            <div className="flex items-start gap-4 mb-4">
+            <div className="flex items-start gap-4 mb-6">
               <div
-                className="p-3 rounded-lg"
+                className="p-4 rounded border"
                 style={{
-                  backgroundColor: `${getNodeColor(selectedNode)}20`,
-                  border: `2px solid ${getNodeColor(selectedNode)}50`,
+                  backgroundColor: `${getNodeColor(selectedNode)}10`,
+                  borderColor: `${getNodeColor(selectedNode)}30`,
                 }}
               >
                 {React.createElement(getNodeIcon(selectedNode), {
-                  size: 32,
-                  className: 'text-[#D4AF37]',
-                  style: { filter: 'drop-shadow(0 0 8px #D4AF37)' },
+                  size: 24,
+                  className: 'text-brand-gold',
                 })}
               </div>
               <div className="flex-1">
-                <h3 className="text-2xl font-bold text-[#D4AF37] mb-1" style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.5)' }}>
+                <h3 className="text-xl font-bold text-brand-white mb-1 tracking-tight">
                   {selectedNode.label}
                 </h3>
                 <div className="flex gap-2 items-center">
-                  <span className="px-2 py-1 rounded bg-[#D4AF37]/20 border border-[#D4AF37]/30 text-[#D4AF37] text-xs font-bold uppercase">
+                  <span className="px-2 py-0.5 rounded bg-slate-800 text-brand-slate text-[10px] font-bold uppercase tracking-wider">
                     {selectedNode.type}
                   </span>
                   {selectedNode.country && (
-                    <span className="px-2 py-1 rounded bg-blue-900/30 border border-blue-500/30 text-blue-300 text-xs font-bold">
+                    <span className="px-2 py-0.5 rounded bg-blue-900/20 text-blue-400 text-[10px] font-bold tracking-wider">
                       {selectedNode.country}
                     </span>
                   )}
@@ -269,53 +257,42 @@ const ForceGraph = ({ data }) => {
               </div>
             </div>
 
-            {/* Details */}
-            <div className="space-y-3">
+            <div className="space-y-4 pt-4 border-t border-brand-border">
               {selectedNode.details && (
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">Detaily:</p>
-                  <p className="text-gray-300">{selectedNode.details}</p>
+                  <p className="text-[10px] uppercase font-bold text-brand-slate mb-1">Popis:</p>
+                  <p className="text-sm text-brand-white/80 leading-relaxed">{selectedNode.details}</p>
                 </div>
               )}
 
               {selectedNode.ico && (
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">IČO:</p>
-                  <p className="text-gray-300 font-mono">{selectedNode.ico}</p>
+                  <p className="text-[10px] uppercase font-bold text-brand-slate mb-1">Identifikátor (IČO):</p>
+                  <p className="text-sm font-mono text-brand-white">{selectedNode.ico}</p>
                 </div>
               )}
 
               {selectedNode.risk_score !== undefined && selectedNode.risk_score > 0 && (
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">Rizikové skóre:</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-700 rounded-full h-2">
+                  <p className="text-[10px] uppercase font-bold text-brand-slate mb-1">Analýza rizika:</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-slate-800 rounded-full h-1.5">
                       <div
-                        className="h-2 rounded-full transition-all"
+                        className="h-1.5 rounded-full"
                         style={{
                           width: `${(selectedNode.risk_score / 10) * 100}%`,
                           backgroundColor: selectedNode.risk_score > 5 ? '#ef4444' : '#fbbf24',
                         }}
                       />
                     </div>
-                    <span className="text-sm font-bold text-red-300">{selectedNode.risk_score}/10</span>
+                    <span className="text-xs font-bold text-brand-white">{selectedNode.risk_score}/10</span>
                   </div>
-                </div>
-              )}
-
-              {selectedNode.virtual_seat && (
-                <div className="flex items-center gap-2 p-2 bg-amber-900/30 border border-amber-500/30 rounded-lg">
-                  <AlertTriangle size={16} className="text-amber-400" />
-                  <span className="text-sm text-amber-300">Virtuálne sídlo</span>
                 </div>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="mt-6 pt-4 border-t border-[#D4AF37]/20">
-              <p className="text-xs text-gray-500 text-center">
-                Kliknite mimo modalu alebo stlačte ESC pre zatvorenie
-              </p>
+            <div className="mt-8 text-[10px] text-brand-slate text-center uppercase tracking-widest">
+              V4-Finstat Intelligence Report
             </div>
           </div>
         </div>

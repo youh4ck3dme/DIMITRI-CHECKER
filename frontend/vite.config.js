@@ -11,11 +11,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico'],
       manifest: {
-        name: 'ILUMINATI SYSTEM',
-        short_name: 'ILUMINATI',
-        description: 'Transparentnosť pre slovenské podnikanie - Cross-border business intelligence',
-        theme_color: '#0B4EA2',
-        background_color: '#ffffff',
+        name: 'V4-FINSTAT PROJEKT',
+        short_name: 'V4-FINSTAT',
+        description: 'V4 Region Business Intelligence & Compliance Platform',
+        theme_color: '#0F172A',
+        background_color: '#0F172A',
         display: 'standalone',
         icons: [
           {

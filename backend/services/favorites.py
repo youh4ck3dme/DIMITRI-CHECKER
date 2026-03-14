@@ -3,11 +3,11 @@ Favorites service pre ILUMINATI SYSTEM
 Správa obľúbených firiem používateľov
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from services.database import get_db_session, FavoriteCompany
+from services.database import FavoriteCompany
 
 
 def add_favorite(

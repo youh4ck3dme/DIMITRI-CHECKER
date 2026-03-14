@@ -20,6 +20,7 @@ import DisclaimerPage from './pages/Disclaimer';
 import CookiePolicy from './pages/CookiePolicy';
 import DataProcessingAgreement from './pages/DataProcessingAgreement';
 import License from './pages/License';
+import InvestorPitch from './pages/InvestorPitch';
 
 function App() {
   return (
@@ -92,6 +93,7 @@ function App() {
             <Route path="/cookies" element={<CookiePolicy />} />
             <Route path="/dpa" element={<DataProcessingAgreement />} />
             <Route path="/license" element={<License />} />
+            <Route path="/investor" element={<InvestorPitch />} />
           </Routes>
         </Router>
       </AuthProvider>

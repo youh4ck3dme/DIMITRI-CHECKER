@@ -40,7 +40,7 @@ describe('Footer', () => {
       </RouterWrapper>
     );
     
-    expect(screen.getByText(/privacy@crossbordernexus.com/)).toBeInTheDocument();
+    expect(screen.getByText(/intelligence@v4-finstat\.com/)).toBeInTheDocument();
   });
 
   it('displays copyright information', () => {
@@ -52,7 +52,7 @@ describe('Footer', () => {
     
     const currentYear = new Date().getFullYear();
     expect(screen.getByText(new RegExp(currentYear.toString()))).toBeInTheDocument();
-    expect(screen.getByText(/Iluminati Corp s\.r\.o\./i)).toBeInTheDocument();
+    expect(screen.getByText(/V4-Finstat Projekt s\.r\.o\./i)).toBeInTheDocument();
   });
 
   it('has correct link attributes', () => {
